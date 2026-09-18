@@ -24,7 +24,6 @@ checkpoints/
 runs/
 
 # Large generated data
-data/auxiliary/
 
 # Logs
 *.log
