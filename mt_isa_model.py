@@ -45,8 +45,10 @@ class DataLevelAWL(nn.Module):
         Returns:
             Scaled embeddings [batch_size, seq_len, embed_dim]
         """
-        # Reshape confidence for broadcasting: [batch_size] -> [batch_size, 1, 1]
-        confidence_scores = confidence_scores.view(-1, 1, 1)
+        confidence_scores = confidence_scores.to(
+            dtype=embeddings.dtype,
+            device=embeddings.device
+        ).view(-1, 1, 1)
         scaled_embeddings = embeddings * confidence_scores
         
         return scaled_embeddings
@@ -67,7 +69,10 @@ class DataLevelAWL(nn.Module):
         Returns:
             Weighted loss
         """
-        # Average confidence across batch
+        confidence_scores = confidence_scores.to(
+            dtype=loss.dtype,
+            device=loss.device
+        )
         mean_confidence = confidence_scores.mean()
         weighted_loss = loss * mean_confidence
         

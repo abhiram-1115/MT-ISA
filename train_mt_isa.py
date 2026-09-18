@@ -129,9 +129,9 @@ class AspectSentimentDataset(Dataset):
             'target': target,
             'gold_polarity': gold_polarity,
             'aspect_text': aspect_text,
-            'aspect_confidence': float(aspect_conf),
+            'aspect_confidence': torch.tensor(aspect_conf, dtype=torch.float32),
             'opinion_text': opinion_text,
-            'opinion_confidence': float(opinion_conf)
+            'opinion_confidence': torch.tensor(opinion_conf, dtype=torch.float32)
         }
         
         # Tokenize inputs for each task
