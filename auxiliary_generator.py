@@ -5,6 +5,7 @@ Implements the LLM-based generation with polarity intervention and confidence sc
 
 import json
 import logging
+import re
 from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass, asdict
 from pathlib import Path
@@ -19,6 +20,19 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+def is_valid_text(text: str, source_sentence: Optional[str] = None) -> bool:
+    """Reject empty, non-English, and known non-extractive outputs."""
+    if not text or re.search(r'[^\x00-\x7F]', text):
+        return False
+
+    return text.lower().strip('. ') not in {
+        'positive', 'negative', 'neutral', 'insufficient data available',
+        'insufficient information', 'unable to determine'
+    } and (
+        source_sentence is None or text.lower().strip('. ') in source_sentence.lower()
+    )
 
 
 @dataclass
@@ -172,7 +186,12 @@ class AuxiliaryGenerator:
             
             if verbose:
                 logger.info(f"Feedback: {feedback}")
-        
+
+        if not is_valid_text(best_opinion, sentence):
+            best_opinion, best_opinion_conf = "", 0.0
+        if not is_valid_text(best_aspect):
+            best_aspect, best_aspect_conf = "", 0.0
+
         # Create result
         result = AuxiliaryData(
             instance_id=instance_id,

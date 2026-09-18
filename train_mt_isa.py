@@ -5,6 +5,7 @@ Complete training pipeline with validation and checkpointing
 
 import os
 import json
+import re
 import logging
 import torch
 import torch.nn as nn
@@ -26,6 +27,26 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+def is_usable_auxiliary_text(
+    text: Optional[str],
+    sentence: str,
+    require_sentence_match: bool = False
+) -> bool:
+    """Accept only English extracted text, not generated verdicts."""
+    if not text or re.search(r'[^\x00-\x7F]', text):
+        return False
+
+    normalized = text.lower().strip(' .\"\'')
+    if normalized in {
+        'positive', 'negative', 'neutral', 'insufficient data available',
+        'insufficient information', 'unable to determine'
+    }:
+        return False
+    if len(text.split()) > 5:
+        return False
+    return not require_sentence_match or normalized in sentence.lower()
 
 
 class AspectSentimentDataset(Dataset):
@@ -73,20 +94,26 @@ class AspectSentimentDataset(Dataset):
         # Get auxiliary data if available
         aux_data = self.auxiliary_by_id.get(instance_id, None)
 
-        aspect_text = (
+        raw_aspect = (
             aux_data.get('aspect')
             if aux_data and aux_data.get('aspect') is not None
             else target
         )
+        aspect_text = raw_aspect if is_usable_auxiliary_text(raw_aspect, sentence) else target
         aspect_conf = (
             aux_data.get('aspect_confidence', 0.5)
             if aux_data and aux_data.get('aspect_confidence') is not None
             else 0.5
         )
 
-        opinion_text = (
+        raw_opinion = (
             aux_data.get('opinion')
             if aux_data and aux_data.get('opinion') is not None
+            else (instance.get('opinion_term') or '')
+        )
+        opinion_text = (
+            raw_opinion
+            if is_usable_auxiliary_text(raw_opinion, sentence)
             else (instance.get('opinion_term') or '')
         )
         opinion_conf = (
@@ -127,10 +154,12 @@ class AspectSentimentDataset(Dataset):
                 truncation=True,
                 return_tensors='pt'
             )
+            aspect_labels = aspect_label['input_ids'].squeeze(0)
+            aspect_labels[aspect_labels == self.tokenizer.pad_token_id] = -100
             
             item['aspect_input_ids'] = aspect_tokens['input_ids'].squeeze(0)
             item['aspect_attention_mask'] = aspect_tokens['attention_mask'].squeeze(0)
-            item['aspect_labels'] = aspect_label['input_ids'].squeeze(0)
+            item['aspect_labels'] = aspect_labels
             
             # OPINION TASK: "opinion: sentence [SEP] target [SEP] aspect"
             opinion_input = f"opinion: {sentence} [SEP] {target} [SEP] {aspect_text}"
@@ -150,12 +179,14 @@ class AspectSentimentDataset(Dataset):
                 truncation=True,
                 return_tensors='pt'
             )
+            opinion_labels = opinion_label['input_ids'].squeeze(0)
+            opinion_labels[opinion_labels == self.tokenizer.pad_token_id] = -100
             
             item['opinion_input_ids'] = opinion_tokens['input_ids'].squeeze(0)
             item['opinion_attention_mask'] = opinion_tokens['attention_mask'].squeeze(0)
-            item['opinion_labels'] = opinion_label['input_ids'].squeeze(0)
+            item['opinion_labels'] = opinion_labels
             
-            # POLARITY TASK: classification over {positive, negative, neutral}
+            # POLARITY TASK: generate the polarity label as text
             polarity_input = f"sentiment polarity: {sentence} [SEP] {target}"
             polarity_tokens = self.tokenizer(
                 polarity_input,
@@ -165,12 +196,18 @@ class AspectSentimentDataset(Dataset):
                 return_tensors='pt'
             )
 
-            polarity_to_id = {'positive': 0, 'negative': 1, 'neutral': 2}
-            polarity_id = polarity_to_id.get(gold_polarity.lower(), 2)
+            polarity_label = self.tokenizer(
+                gold_polarity.lower(),
+                max_length=8,
+                padding='max_length',
+                truncation=True,
+                return_tensors='pt'
+            )['input_ids'].squeeze(0)
+            polarity_label[polarity_label == self.tokenizer.pad_token_id] = -100
 
             item['polarity_input_ids'] = polarity_tokens['input_ids'].squeeze(0)
             item['polarity_attention_mask'] = polarity_tokens['attention_mask'].squeeze(0)
-            item['polarity_label_id'] = torch.tensor(polarity_id, dtype=torch.long)
+            item['polarity_labels'] = polarity_label
         
         return item
 
@@ -250,7 +287,7 @@ class Trainer:
 
                 polarity_input_ids=batch['polarity_input_ids'],
                 polarity_attention_mask=batch['polarity_attention_mask'],
-                polarity_label_id=batch['polarity_label_id'],
+                polarity_labels=batch['polarity_labels'],
 
                 return_losses=True
             )
@@ -310,7 +347,7 @@ class Trainer:
 
                     polarity_input_ids=batch['polarity_input_ids'],
                     polarity_attention_mask=batch['polarity_attention_mask'],
-                    polarity_label_id=batch['polarity_label_id'],
+                    polarity_labels=batch['polarity_labels'],
 
                     return_losses=True
                 )
@@ -405,7 +442,7 @@ def main():
     parser.add_argument('--t-awl-version', type=str, default='alf2',
                         choices=['alf1', 'alf2'],
                         help='T-AWL version')
-    parser.add_argument('--model-name', type=str, default='google/flan-t5-small',
+    parser.add_argument('--model-name', type=str, default='google/flan-t5-base',
                         help='Pretrained model name')
     parser.add_argument('--output-dir', type=str, default='models/outputs/',
                         help='Output directory')

@@ -5,9 +5,7 @@ Includes Flan-T5 backbone with D-AWL, T-AWL, and automatic loss function
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from transformers import T5ForConditionalGeneration, T5Tokenizer
-import math
 from typing import Optional, Tuple, Dict
 import logging
 
@@ -194,34 +192,28 @@ class MTISAModel(nn.Module):
     
     Architecture:
     - Shared encoder (Flan-T5 encoder)
-    - Task-specific decoders:
-        1. Aspect inference
-        2. Opinion inference
-        3. Polarity classification
+    - Shared seq2seq decoder for aspect, opinion, and polarity generation
     - D-AWL for data-level uncertainty
     - T-AWL for task-level uncertainty
     """
     
     def __init__(
         self,
-        model_name: str = 'google/flan-t5-small',
+        model_name: str = 'google/flan-t5-base',
         d_awl_strategy: str = 'input',
         t_awl_version: str = 'alf2',
-        num_polarity_classes: int = 3
     ):
         """
         Args:
             model_name: Pretrained model name
             d_awl_strategy: 'input', 'output', or 'input_output'
             t_awl_version: 'alf1' or 'alf2'
-            num_polarity_classes: Number of polarity classes
         """
         super().__init__()
         
         self.model_name = model_name
         self.d_awl_strategy = d_awl_strategy
         self.t_awl_version = t_awl_version
-        self.num_polarity_classes = num_polarity_classes
         
         # Load pretrained T5 model
         self.backbone = T5ForConditionalGeneration.from_pretrained(model_name)
@@ -235,15 +227,6 @@ class MTISAModel(nn.Module):
         
         # T-AWL module
         self.t_awl = TaskLevelAWL(num_tasks=3, alf_version=t_awl_version)
-        
-        # Task-specific classification head for polarity
-        # (for fine-grained control if needed)
-        self.polarity_head = nn.Sequential(
-            nn.Linear(self.hidden_dim, self.hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(0.1),
-            nn.Linear(self.hidden_dim, num_polarity_classes)
-        )
         
         logger.info(f"Initialized MT-ISA model:")
         logger.info(f"  Backbone: {model_name}")
@@ -264,8 +247,6 @@ class MTISAModel(nn.Module):
         opinion_labels: Optional[torch.Tensor] = None,
         opinion_confidence: Optional[torch.Tensor] = None,
         polarity_labels: Optional[torch.Tensor] = None,
-        polarity_label_id: Optional[torch.Tensor] = None,
-
         return_losses: bool = True
     ) -> Dict:
         """
@@ -278,18 +259,18 @@ class MTISAModel(nn.Module):
         
         # ==================== ASPECT TASK ====================
         if aspect_input_ids is not None:
-            aspect_output = self.backbone(
-                input_ids=aspect_input_ids,
-                attention_mask=aspect_attention_mask,
-                labels=aspect_labels,
-                decoder_attention_mask=aspect_labels != -100 if aspect_labels is not None else None
+            aspect_output = self._run_task(
+                aspect_input_ids,
+                aspect_attention_mask,
+                aspect_labels,
+                aspect_confidence
             )
             
             aspect_loss = aspect_output.loss
             
             # Apply D-AWL if confidence scores provided
             if aspect_confidence is not None and aspect_loss is not None:
-                if self.d_awl_strategy == 'output':
+                if self.d_awl_strategy in {'output', 'input_output'}:
                     aspect_loss = self.d_awl(
                         loss=aspect_loss,
                         confidence_scores=aspect_confidence
@@ -300,18 +281,18 @@ class MTISAModel(nn.Module):
         
         # ==================== OPINION TASK ====================
         if opinion_input_ids is not None:
-            opinion_output = self.backbone(
-                input_ids=opinion_input_ids,
-                attention_mask=opinion_attention_mask,
-                labels=opinion_labels,
-                decoder_attention_mask=opinion_labels != -100 if opinion_labels is not None else None
+            opinion_output = self._run_task(
+                opinion_input_ids,
+                opinion_attention_mask,
+                opinion_labels,
+                opinion_confidence
             )
             
             opinion_loss = opinion_output.loss
             
             # Apply D-AWL if confidence scores provided
             if opinion_confidence is not None and opinion_loss is not None:
-                if self.d_awl_strategy == 'output':
+                if self.d_awl_strategy in {'output', 'input_output'}:
                     opinion_loss = self.d_awl(
                         loss=opinion_loss,
                         confidence_scores=opinion_confidence
@@ -322,29 +303,14 @@ class MTISAModel(nn.Module):
         
         # ==================== POLARITY TASK ====================
         if polarity_input_ids is not None:
-            encoder_output = self.backbone.encoder(
-                input_ids=polarity_input_ids,
-                attention_mask=polarity_attention_mask,
+            polarity_output = self._run_task(
+                polarity_input_ids,
+                polarity_attention_mask,
+                polarity_labels,
+                None
             )
-            cls_hidden = encoder_output.last_hidden_state[:, 0, :]
-            polarity_logits = self.polarity_head(cls_hidden)
-
-            outputs['polarity_logits'] = polarity_logits
-
-            if polarity_label_id is not None:
-                polarity_loss = nn.functional.cross_entropy(
-                    polarity_logits,
-                    polarity_label_id.long()
-                )
-                outputs['polarity_loss'] = polarity_loss
-            elif polarity_labels is not None:
-                polarity_loss = self.backbone(
-                    input_ids=polarity_input_ids,
-                    attention_mask=polarity_attention_mask,
-                    labels=polarity_labels,
-                    decoder_attention_mask=polarity_labels != -100 if polarity_labels is not None else None
-                ).loss
-                outputs['polarity_loss'] = polarity_loss
+            outputs['polarity_loss'] = polarity_output.loss
+            outputs['polarity_logits'] = polarity_output.logits
         
         # ==================== TASK-LEVEL AWL ====================
         if return_losses and all(k in outputs for k in ['aspect_loss', 'opinion_loss', 'polarity_loss']):
@@ -364,12 +330,41 @@ class MTISAModel(nn.Module):
             outputs['task_weights'] = self.t_awl.get_task_weights()
         
         return outputs
+
+    def _run_task(
+        self,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor,
+        labels: Optional[torch.Tensor],
+        confidence: Optional[torch.Tensor]
+    ):
+        """Run one task through the shared T5 encoder-decoder."""
+        kwargs = {
+            'attention_mask': attention_mask,
+            'labels': labels,
+            'decoder_attention_mask': labels != -100 if labels is not None else None
+        }
+
+        if confidence is not None and self.d_awl_strategy in {'input', 'input_output'}:
+            embeddings = self.backbone.encoder.embed_tokens(input_ids)
+            embeddings = self.d_awl(
+                embeddings=embeddings,
+                confidence_scores=confidence
+            )
+            output = self.backbone(
+                inputs_embeds=embeddings,
+                **kwargs
+            )
+        else:
+            output = self.backbone(input_ids=input_ids, **kwargs)
+
+        return output
     
     def predict_polarity(
         self,
         input_ids: torch.Tensor,
         attention_mask: torch.Tensor
-    ) -> torch.Tensor:
+    ) -> Tuple[list, torch.Tensor]:
         """
         Predict polarity class for input
         
@@ -378,22 +373,30 @@ class MTISAModel(nn.Module):
             attention_mask: Attention mask
             
         Returns:
-            Predicted class logits or probabilities
+            Generated polarity text and generation confidence
         """
-        # Get encoder output
-        encoder_output = self.backbone.encoder(
+        generation = self.backbone.generate(
             input_ids=input_ids,
-            attention_mask=attention_mask
+            attention_mask=attention_mask,
+            max_new_tokens=3,
+            num_beams=1,
+            return_dict_in_generate=True,
+            output_scores=True
         )
-        encoder_hidden = encoder_output.last_hidden_state
-        
-        # Use [CLS]-like token (first token)
-        cls_hidden = encoder_hidden[:, 0, :]
-        
-        # Pass through classification head
-        logits = self.polarity_head(cls_hidden)
-        
-        return logits
+        texts = self.tokenizer.batch_decode(
+            generation.sequences,
+            skip_special_tokens=True
+        )
+        if generation.scores:
+            step_confidences = [
+                torch.softmax(scores, dim=-1).max(dim=-1).values
+                for scores in generation.scores
+            ]
+            confidence = torch.stack(step_confidences).mean(dim=0)
+        else:
+            confidence = torch.ones(input_ids.size(0), device=input_ids.device)
+
+        return texts, confidence
     
     def get_model_info(self) -> Dict:
         """Get model information"""
@@ -417,7 +420,7 @@ def test_model():
     
     # Initialize model
     model = MTISAModel(
-        model_name='google/flan-t5-small',
+        model_name='google/flan-t5-base',
         d_awl_strategy='input',
         t_awl_version='alf2'
     )
@@ -439,7 +442,7 @@ def test_model():
     input_ids = torch.randint(0, 32100, (batch_size, seq_len)).to(device)
     attention_mask = torch.ones_like(input_ids).to(device)
     labels = torch.randint(0, 32100, (batch_size, seq_len)).to(device)
-    polarity_label_id = torch.randint(0, 3, (batch_size,)).to(device)
+    polarity_labels = labels.clone()
     confidence = torch.rand(batch_size).to(device) * 0.4 + 0.6  # [0.6, 1.0]
 
     # Forward pass
@@ -458,7 +461,7 @@ def test_model():
 
             polarity_input_ids=input_ids,
             polarity_attention_mask=attention_mask,
-            polarity_label_id=polarity_label_id
+            polarity_labels=polarity_labels
         )
     
     print(f"Combined loss: {outputs['combined_loss'].item():.4f}")

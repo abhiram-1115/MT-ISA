@@ -39,7 +39,7 @@ class PolarityPredictor:
         
         # Load model (use the default small backbone used for training)
         self.model = MTISAModel(
-            model_name='google/flan-t5-small',  # Adjust if different
+            model_name='google/flan-t5-base',  # Adjust if different
             d_awl_strategy='input',
             t_awl_version='alf2'
         ).to(device)
@@ -48,16 +48,8 @@ class PolarityPredictor:
         self.model.eval()
         
         # Tokenizer
-        self.tokenizer = T5Tokenizer.from_pretrained('google/flan-t5-small')
+        self.tokenizer = T5Tokenizer.from_pretrained('google/flan-t5-base')
         
-        # Polarity to ID mapping
-        self.polarity_to_id = {
-            'positive': 0,
-            'negative': 1,
-            'neutral': 2
-        }
-        self.id_to_polarity = {v: k for k, v in self.polarity_to_id.items()}
-    
     def predict(self, sentence: str, target: str) -> Tuple[str, float]:
         """
         Predict polarity for sentence + target
@@ -82,24 +74,16 @@ class PolarityPredictor:
         ).to(self.device)
         
         with torch.no_grad():
-            # Get encoder output
-            encoder_output = self.model.backbone.encoder(
+            generated_texts, confidences = self.model.predict_polarity(
                 input_ids=inputs['input_ids'],
                 attention_mask=inputs['attention_mask']
             )
-            
-            # Get CLS hidden state
-            cls_hidden = encoder_output.last_hidden_state[:, 0, :]
-            
-            # Classify
-            logits = self.model.polarity_head(cls_hidden)
-            
-            # Get prediction
-            probs = torch.softmax(logits, dim=-1)
-            pred_id = torch.argmax(probs, dim=-1).item()
-            confidence = probs[0, pred_id].item()
-        
-        predicted_polarity = self.id_to_polarity[pred_id]
+
+        generated_tokens = generated_texts[0].strip().lower().split()
+        predicted_polarity = generated_tokens[0] if generated_tokens else 'neutral'
+        if predicted_polarity not in {'positive', 'negative', 'neutral'}:
+            predicted_polarity = 'neutral'
+        confidence = confidences[0].item()
         
         return predicted_polarity, confidence
 

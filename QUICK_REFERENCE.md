@@ -84,7 +84,7 @@ cat models/predictions.json | python -m json.tool | head -100
 --learning-rate       Learning rate (default: 1e-5)
 --d-awl-strategy      'input', 'output', or 'input_output' (default: input)
 --t-awl-version       'alf1' or 'alf2' (default: alf2)
---model-name          Pretrained model (default: google/flan-t5-small)
+--model-name          Pretrained model (default: google/flan-t5-base)
 --output-dir          Output directory (default: models/outputs/)
 --early-stopping-patience  Patience for early stopping (default: 10)
 --seed                Random seed (default: 42)
@@ -223,7 +223,7 @@ def __init__(self, ..., timeout: int = 120):  # Increase from 120
 --gradient-accumulation-steps 2
 
 # Use smaller model
---model-name google/flan-t5-small
+--model-name google/flan-t5-base
 ```
 
 ### Issue: Very slow auxiliary generation

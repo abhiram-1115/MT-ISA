@@ -468,7 +468,7 @@ RuntimeError: CUDA out of memory
 
 **Solutions:**
 - Reduce batch size: `--batch-size 8` (from 16)
-- Use smaller model: `--model-name google/flan-t5-small`
+- Use smaller model: `--model-name google/flan-t5-base`
 - Enable gradient accumulation: add `--gradient-accumulation-steps 2`
 - Use CPU: Set `CUDA_VISIBLE_DEVICES=""` before running
 

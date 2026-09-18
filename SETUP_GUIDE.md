@@ -149,7 +149,7 @@ Create `config.yaml`:
 ```yaml
 # Model Configuration
 model:
-  backbone: "google/flan-t5-small"  # or base, large, xl, xxl
+  backbone: "google/flan-t5-base"  # or base, large, xl, xxl
   pretrained: true
 
 # Data Configuration
@@ -242,7 +242,7 @@ Solution:
 ```
 If GPU runs out of memory:
 1. Reduce batch_size in config.yaml
-2. Use smaller model: "google/flan-t5-small"
+2. Use smaller model: "google/flan-t5-base"
 3. Enable gradient_accumulation_steps
 4. Use CPU: Set CUDA_VISIBLE_DEVICES=""
 ```

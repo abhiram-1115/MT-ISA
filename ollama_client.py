@@ -5,6 +5,7 @@ Connects to Ollama server and handles LLM-based auxiliary task generation
 
 import requests
 import json
+import re
 import time
 from typing import Tuple, Dict, Optional
 import logging
@@ -116,12 +117,17 @@ class OllamaClient:
         Returns:
             LLMResponse with generated text and confidence
         """
-        temperature = temperature or self.temperature
-        max_tokens = max_tokens or self.max_tokens
+        temperature = self.temperature if temperature is None else temperature
+        max_tokens = self.max_tokens if max_tokens is None else max_tokens
+        confidence_prompt = (
+            f"{prompt}\n\n"
+            "After your answer, write a new line exactly as "
+            "Confidence: <number from 0.5 to 1.0>."
+        )
         
         payload = {
             "model": self.model,
-            "prompt": prompt,
+            "prompt": confidence_prompt,
             "temperature": temperature,
             "num_predict": max_tokens,
             "stream": False
@@ -140,13 +146,10 @@ class OllamaClient:
             
             result = response.json()
             generated_text = result.get('response', '').strip()
+            generated_text, confidence = self._extract_confidence(generated_text)
             
-            # Estimate confidence from response
-            confidence = self._estimate_confidence(
-                prompt,
-                generated_text,
-                result
-            )
+            if confidence is None:
+                confidence = self._estimate_confidence(prompt, generated_text, result)
             
             return LLMResponse(
                 text=generated_text,
@@ -168,42 +171,26 @@ class OllamaClient:
         llm_result: Dict
     ) -> float:
         """
-        Estimate confidence in the response
-        
-        Based on:
-        1. Response length (too short/long = lower confidence)
-        2. Response coherence (based on perplexity if available)
-        3. Presence of uncertainty markers
-        
-        Returns value between 0.5 and 1.0
+        Return the model-reported confidence, or the neutral fallback when absent.
         """
-        if not response:
-            return 0.5
-        
-        confidence = 0.75  # Base confidence
-        
-        # Penalty for very short responses
-        if len(response.split()) < 2:
-            confidence -= 0.15
-        
-        # Penalty for very long responses
-        if len(response.split()) > 50:
-            confidence -= 0.10
-        
-        # Penalty for uncertainty markers
-        uncertainty_phrases = [
-            "i don't know", "i'm not sure", "possibly", "maybe", 
-            "might be", "could be", "uncertain", "unclear"
-        ]
-        if any(phrase in response.lower() for phrase in uncertainty_phrases):
-            confidence -= 0.15
-        
-        # Penalty for incomplete responses
-        if response.endswith("...") or response.endswith("?") or len(response) > 95:
-            confidence -= 0.10
-        
-        # Ensure confidence stays in [0.5, 1.0]
-        return max(0.5, min(1.0, confidence))
+        _, confidence = self._extract_confidence(response)
+        return 0.5 if confidence is None else confidence
+
+    @staticmethod
+    def _extract_confidence(response: str) -> Tuple[str, Optional[float]]:
+        """Remove and parse the confidence score reported by the LLM."""
+        pattern = re.compile(
+            r"(?:confidence|certainty)(?:\s+score)?\s*(?:is\s*)?[:=-]\s*"
+            r"(0(?:\.\d+)?|1(?:\.0+)?)",
+            re.IGNORECASE
+        )
+        match = pattern.search(response)
+        if not match:
+            return response.strip(), None
+
+        confidence = max(0.5, min(1.0, float(match.group(1))))
+        cleaned = response[:match.start()].strip().rstrip('-:')
+        return cleaned, confidence
     
     def extract_json(self, response_text: str) -> Optional[Dict]:
         """
@@ -257,16 +244,18 @@ class AspectOpinionExtractor:
 Target aspect: "{target}"
 Previous feedback: {feedback}
 
-Based on the feedback, what is the MOST RELEVANT implicit aspect element related to '{target}'?
+Based on the feedback, extract the MOST RELEVANT implicit aspect element related to '{target}' from the sentence.
+Copy the exact word or short phrase as it appears in the sentence; do not summarize or invent text.
 Provide ONLY the aspect phrase (1-3 words), nothing else."""
         else:
             prompt = f"""Given the sentence: "{sentence}"
 Target aspect: "{target}"
 
-What is the most relevant implicit aspect element or dimension related to '{target}' in this sentence?
+Extract the most relevant implicit aspect element or dimension related to '{target}' from the sentence.
+Copy the exact word or short phrase as it appears in the sentence; do not summarize or invent text.
 Provide ONLY the aspect phrase (1-3 words), nothing else."""
         
-        response = self.client.generate(prompt, temperature=0.5)
+        response = self.client.generate(prompt, temperature=0.7)
         
         # Clean response
         aspect_text = response.text.strip().strip('*').strip('"').strip()
@@ -302,22 +291,45 @@ Target aspect: "{target}"
 Aspect element: "{aspect}"
 Previous feedback: {feedback}
 
-Based on the feedback, what is the opinion towards the '{aspect}'?
+Based on the feedback, extract the exact word or short phrase FROM THE SENTENCE that expresses an opinion about '{aspect}'.
+Do NOT output a sentiment label such as "positive", "negative", or "neutral", or a summary judgment.
+Copy the actual opinion word(s) as they appear in the sentence.
 Provide ONLY the opinion phrase (1-3 words), nothing else."""
         else:
             prompt = f"""Given the sentence: "{sentence}"
 Target aspect: "{target}"
 Aspect element: "{aspect}"
 
-What is the opinion or evaluation towards the '{aspect}'?
+Extract the exact word or short phrase FROM THE SENTENCE that expresses an opinion about '{aspect}'.
+Do NOT output a sentiment label such as "positive", "negative", "neutral", or a summary judgment.
+Copy the actual opinion word(s) as they appear in the sentence.
+
+Example 1:
+Sentence: "The food was absolutely delicious."
+Aspect: food
+Opinion: delicious
+
+Example 2:
+Sentence: "Service was painfully slow tonight."
+Aspect: service
+Opinion: painfully slow
+
+Now extract the opinion phrase for '{aspect}' from the sentence above.
 Provide ONLY the opinion phrase (1-3 words), nothing else."""
         
-        response = self.client.generate(prompt, temperature=0.5)
+        response = self.client.generate(prompt, temperature=0.7)
         
         opinion_text = response.text.strip().strip('*').strip('"').strip()
         
         # Filter junk responses
-        if not opinion_text or len(opinion_text.split()) > 5 or opinion_text.lower() == "null":
+        banned_terms = {
+            'positive', 'negative', 'neutral', 'insufficient data available',
+            'insufficient information', 'unable to determine'
+        }
+        if (not opinion_text or len(opinion_text.split()) > 5 or
+                opinion_text.lower() == "null" or
+            opinion_text.lower().strip('. ') in banned_terms or
+            opinion_text.lower().strip('. ') not in sentence.lower()):
             return "", 0.5
         
         return opinion_text, response.confidence
@@ -350,7 +362,7 @@ Opinion: "{opinion}"
 What is the sentiment polarity (positive, negative, or neutral)?
 Answer with ONLY one word: positive, negative, or neutral"""
         
-        response = self.client.generate(prompt, temperature=0.3)
+        response = self.client.generate(prompt, temperature=0.7)
         polarity = response.text.strip().lower()
         
         # Validate polarity
@@ -426,7 +438,7 @@ What is the sentiment polarity towards the aspect (positive, negative, or neutra
 Consider the entire sentence context since there is no explicit opinion term.
 Answer with ONLY one word: positive, negative, or neutral"""
         
-        response = self.client.generate(prompt, temperature=0.3)
+        response = self.client.generate(prompt, temperature=0.7)
         polarity = response.text.strip().lower()
         
         # Validate polarity
