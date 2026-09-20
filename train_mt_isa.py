@@ -97,6 +97,19 @@ def make_validation_split(instances: List[Dict], fraction: float, seed: int):
     return train, val
 
 
+def has_unk_label(aux: Dict, tok) -> bool:
+    """True if an aspect/opinion label can't be represented by the T5 tokenizer
+    (e.g. Chinese text from the generator) - it would train on <unk>/empty targets."""
+    for field in ("aspect", "opinion"):
+        text = (aux.get(field) or "").strip()
+        if not text:
+            continue  # empty labels are replaced by target / "none" in the dataset
+        ids = tok(text).input_ids
+        if tok.unk_token_id in ids or not tok.decode(ids, skip_special_tokens=True).strip():
+            return True
+    return False
+
+
 def describe_aux(aux_rows: List[Dict]):
     if not aux_rows:
         return
@@ -377,6 +390,8 @@ def main():
     ap.add_argument("--drop-nonconverged", action="store_true",
                     help="Remove non-converged aux rows from the TRAIN split only.")
 
+    ap.add_argument("--keep-unk-labels", action="store_true",
+                    help="Keep train rows whose aux labels contain <unk> (dropped by default).")
     ap.add_argument("--polarity-only", action="store_true",
                     help="Baseline: train on the polarity task only (no auxiliary tasks).")
     ap.add_argument("--bf16", action="store_true")
@@ -431,6 +446,13 @@ def main():
     label_stats(val_instances, "val")
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+
+    if not args.keep_unk_labels:
+        before = len(train_instances)
+        train_instances = [x for x in train_instances
+                           if not has_unk_label(aux_by_id[x["id"]], tokenizer)]
+        logger.info("Dropped train rows whose aux labels contain <unk> (non-English text): %d -> %d",
+                    before, len(train_instances))
     collate = make_collate(tokenizer.pad_token_id)
 
     train_ds = MTISADataset(train_instances, tokenizer,
