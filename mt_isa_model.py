@@ -1,470 +1,294 @@
 """
-MT-ISA Model Implementation
-Includes Flan-T5 backbone with D-AWL, T-AWL, and automatic loss function
+MT-ISA model (v2)
+
+What changed vs. the previous version
+-------------------------------------
+1. D-AWL is actually applied:
+     - input  : e_i = c_i * Emb(x_i)          (Eq. 4/5)  -> fed via inputs_embeds
+     - output : per-INSTANCE weighting c_i * NLL_i (Eq. 6) instead of batch-mean
+     - input_output : both (Eq. 7)
+     - none   : no confidence weighting (ablation)
+   D-AWL is applied to the auxiliary tasks only (aspect / opinion), as in the paper.
+   Confidences are clipped to [0.5, 1.0] (the paper clips at 0.5).
+2. Polarity is the PRIMARY task again, trained the way the paper describes:
+   prompt-based Flan-T5, cross-entropy on the label word (positive/negative/neutral).
+   Prediction = argmax over the first-decoder-step logits of the 3 label tokens.
+   The randomly-initialised head on encoder token 0 (T5 has no CLS) is gone.
+3. T-AWL is numerically stable:
+     weight_k = exp(-s_k) with s_k = log(sigma_k^2)
+     ALF1 reg = s_k            ALF2 reg = softplus(s_k) = ln(sigma_k^2 + 1)
+   s_k is clamped to [-4, 4]. Logged weights are also reported normalised (sum = 1),
+   which is how the paper's Table III reports them.
+4. All losses are computed in fp32, with padded label positions ignored (-100)
+   and a clamp on the token count, so an empty label can't produce NaN.
 """
+
+import logging
+from typing import Dict, Optional, Tuple
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from transformers import T5ForConditionalGeneration, T5Tokenizer
-import math
-from typing import Optional, Tuple, Dict
-import logging
-
+from transformers import AutoTokenizer, T5ForConditionalGeneration
 
 logger = logging.getLogger(__name__)
 
+POLARITY_WORDS = ["positive", "negative", "neutral"]
+TASK_NAMES = ("aspect", "opinion", "polarity")
+CONF_MIN = 0.5
+LOG_SIGMA_SQ_RANGE = (-4.0, 4.0)
+
 
 class DataLevelAWL(nn.Module):
-    """
-    Data-Level Automatic Weight Learning
-    Three strategies: Input (I), Output (O), Input-Output (I-O)
-    """
-    
-    def __init__(self, strategy: str = 'input'):
-        """
-        Args:
-            strategy: 'input', 'output', or 'input_output'
-        """
+    """Data-level automatic weight learning driven by per-instance confidence."""
+
+    def __init__(self, strategy: str = "input", conf_min: float = CONF_MIN):
         super().__init__()
-        assert strategy in ['input', 'output', 'input_output'], \
+        assert strategy in ("input", "output", "input_output", "none"), (
             f"Unknown D-AWL strategy: {strategy}"
+        )
         self.strategy = strategy
-    
-    def apply_input_strategy(
-        self,
-        embeddings: torch.Tensor,
-        confidence_scores: torch.Tensor
+        self.conf_min = conf_min
+
+    @property
+    def scales_input(self) -> bool:
+        return self.strategy in ("input", "input_output")
+
+    @property
+    def scales_output(self) -> bool:
+        return self.strategy in ("output", "input_output")
+
+    def clean(self, conf: torch.Tensor) -> torch.Tensor:
+        conf = torch.nan_to_num(
+            conf.float(), nan=self.conf_min, posinf=1.0, neginf=self.conf_min
+        )
+        return conf.clamp(self.conf_min, 1.0)
+
+    def scale_embeddings(
+        self, emb: torch.Tensor, conf: Optional[torch.Tensor]
     ) -> torch.Tensor:
-        """
-        Input Strategy (I): Scale embeddings by confidence
-        e_i = c_i * Emb(x_i)
-        
-        Args:
-            embeddings: [batch_size, seq_len, embed_dim]
-            confidence_scores: [batch_size]
-            
-        Returns:
-            Scaled embeddings [batch_size, seq_len, embed_dim]
-        """
-        # Reshape confidence for broadcasting: [batch_size] -> [batch_size, 1, 1]
-        confidence_scores = confidence_scores.view(-1, 1, 1)
-        scaled_embeddings = embeddings * confidence_scores
-        
-        return scaled_embeddings
-    
-    def apply_output_strategy(
-        self,
-        loss: torch.Tensor,
-        confidence_scores: torch.Tensor
+        """e_i = c_i * Emb(x_i).  emb: [B, T, D], conf: [B]"""
+        if not self.scales_input or conf is None:
+            return emb
+        return emb * self.clean(conf).view(-1, 1, 1).to(emb.dtype)
+
+    def weight_sample_losses(
+        self, per_sample: torch.Tensor, conf: Optional[torch.Tensor]
     ) -> torch.Tensor:
-        """
-        Output Strategy (O): Scale loss by confidence
-        L = c_i * log p(y)
-        
-        Args:
-            loss: Scalar loss
-            confidence_scores: [batch_size]
-            
-        Returns:
-            Weighted loss
-        """
-        # Average confidence across batch
-        mean_confidence = confidence_scores.mean()
-        weighted_loss = loss * mean_confidence
-        
-        return weighted_loss
-    
-    def forward(
-        self,
-        embeddings: Optional[torch.Tensor] = None,
-        loss: Optional[torch.Tensor] = None,
-        confidence_scores: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
-        """
-        Apply D-AWL strategy
-        
-        For Input strategy: requires embeddings and confidence_scores
-        For Output strategy: requires loss and confidence_scores
-        """
-        if self.strategy == 'input':
-            assert embeddings is not None and confidence_scores is not None
-            return self.apply_input_strategy(embeddings, confidence_scores)
-        
-        elif self.strategy == 'output':
-            assert loss is not None and confidence_scores is not None
-            return self.apply_output_strategy(loss, confidence_scores)
-        
-        elif self.strategy == 'input_output':
-            # Both input and output scaling
-            if embeddings is not None and confidence_scores is not None:
-                embeddings = self.apply_input_strategy(embeddings, confidence_scores)
-            if loss is not None and confidence_scores is not None:
-                loss = self.apply_output_strategy(loss, confidence_scores)
-            
-            return embeddings if embeddings is not None else loss
+        """c_i * NLL_i.  per_sample: [B], conf: [B]"""
+        if not self.scales_output or conf is None:
+            return per_sample
+        return per_sample * self.clean(conf)
 
 
 class TaskLevelAWL(nn.Module):
     """
-    Task-Level Automatic Weight Learning using Homoscedastic Uncertainty
-    Implements automatic loss functions ALF1 and ALF2
+    Homoscedastic-uncertainty task weighting.
+      ALF1: sum_k  L_k / sigma_k^2 + log(sigma_k^2)
+      ALF2: sum_k  L_k / sigma_k^2 + ln(sigma_k^2 + 1)
+    Parametrised by s_k = log(sigma_k^2), initialised at 0 (sigma^2 = 1).
+    Task order: (aspect, opinion, polarity).
     """
-    
-    def __init__(self, num_tasks: int = 3, alf_version: str = 'alf2'):
-        """
-        Args:
-            num_tasks: Number of tasks (aspect, opinion, polarity)
-            alf_version: 'alf1' or 'alf2'
-        """
+
+    def __init__(self, num_tasks: int = 3, alf_version: str = "alf2"):
         super().__init__()
+        assert alf_version in ("alf1", "alf2"), f"Unknown ALF version: {alf_version}"
         self.num_tasks = num_tasks
         self.alf_version = alf_version
-        
-        # Learnable task uncertainty parameters σ_k^2
-        # Initialize to 1.0 (equal weight)
         self.log_sigma_sq = nn.Parameter(torch.zeros(num_tasks))
-    
-    def forward(
-        self,
-        losses: Tuple[torch.Tensor, ...],
-        reduction: str = 'mean'
-    ) -> torch.Tensor:
-        """
-        Compute combined loss with task-level weights
-        
-        Args:
-            losses: Tuple of task losses (L_aspect, L_opinion, L_polarity)
-            reduction: 'mean' or 'sum'
-            
-        Returns:
-            Combined loss
-        """
-        assert len(losses) == self.num_tasks, \
-            f"Expected {self.num_tasks} losses, got {len(losses)}"
-        
-        # Convert log_sigma_sq to sigma_sq (always positive)
-        sigma_sq = torch.exp(self.log_sigma_sq)
-        
-        # Compute weighted losses: (1/σ_k^2) * L_k
-        weighted_losses = []
+
+    def _s(self) -> torch.Tensor:
+        return self.log_sigma_sq.clamp(*LOG_SIGMA_SQ_RANGE)
+
+    def forward(self, losses: Tuple[torch.Tensor, ...]) -> torch.Tensor:
+        assert len(losses) == self.num_tasks
+        s = self._s()
+        total = 0.0
         for k, loss_k in enumerate(losses):
-            weight_k = 1.0 / (sigma_sq[k] + 1e-8)  # Add epsilon for stability
-            weighted_loss = weight_k * loss_k
-            weighted_losses.append(weighted_loss)
-        
-        # Sum weighted losses
-        total_weighted_loss = sum(weighted_losses)
-        
-        # Add regularization term
-        if self.alf_version == 'alf1':
-            # ALF1: log(σ²) - can be unstable
-            reg_term = torch.sum(self.log_sigma_sq)
-        
-        elif self.alf_version == 'alf2':
-            # ALF2: ln(σ² + 1) - more stable
-            reg_term = torch.sum(torch.log(sigma_sq + 1))
-        
+            total = total + torch.exp(-s[k]) * loss_k
+        if self.alf_version == "alf1":
+            reg = s.sum()
         else:
-            raise ValueError(f"Unknown ALF version: {self.alf_version}")
-        
-        # Total loss
-        total_loss = total_weighted_loss + reg_term
-        
-        if reduction == 'mean':
-            # Normalize by number of tasks
-            total_loss = total_loss / self.num_tasks
-        
-        return total_loss
-    
-    def get_task_weights(self) -> Dict[str, float]:
-        """Get current task weights for inspection"""
-        sigma_sq = torch.exp(self.log_sigma_sq).detach()
-        weights = {
-            'aspect': float(1.0 / (sigma_sq[0] + 1e-8)),
-            'opinion': float(1.0 / (sigma_sq[1] + 1e-8)),
-            'polarity': float(1.0 / (sigma_sq[2] + 1e-8))
-        }
-        return weights
+            reg = F.softplus(s).sum()  # == ln(exp(s) + 1) == ln(sigma^2 + 1)
+        return total + reg
+
+    @torch.no_grad()
+    def get_task_weights(self, normalized: bool = True) -> Dict[str, float]:
+        raw = torch.exp(-self._s())
+        w = raw / raw.sum() if normalized else raw
+        return {name: float(w[i]) for i, name in enumerate(TASK_NAMES)}
+
+    @torch.no_grad()
+    def get_sigma_sq(self) -> Dict[str, float]:
+        sig = torch.exp(self._s())
+        return {name: float(sig[i]) for i, name in enumerate(TASK_NAMES)}
 
 
 class MTISAModel(nn.Module):
     """
-    Multi-Task Learning for Implicit Sentiment Analysis with Automatic Weight Learning
-    
-    Architecture:
-    - Shared encoder (Flan-T5 encoder)
-    - Task-specific decoders:
-        1. Aspect inference
-        2. Opinion inference
-        3. Polarity classification
-    - D-AWL for data-level uncertainty
-    - T-AWL for task-level uncertainty
+    Shared Flan-T5 backbone, three tasks distinguished by their prompts:
+      aspect  (aux)  : seq2seq NLL
+      opinion (aux)  : seq2seq NLL
+      polarity (main): seq2seq NLL on the label word, classified by label-token logits
     """
-    
+
     def __init__(
         self,
-        model_name: str = 'google/flan-t5-small',
-        d_awl_strategy: str = 'input',
-        t_awl_version: str = 'alf2',
-        num_polarity_classes: int = 3
+        model_name: str = "google/flan-t5-base",
+        d_awl_strategy: str = "input",
+        t_awl_version: str = "alf2",
+        backbone: Optional[nn.Module] = None,
+        tokenizer=None,
     ):
-        """
-        Args:
-            model_name: Pretrained model name
-            d_awl_strategy: 'input', 'output', or 'input_output'
-            t_awl_version: 'alf1' or 'alf2'
-            num_polarity_classes: Number of polarity classes
-        """
         super().__init__()
-        
         self.model_name = model_name
         self.d_awl_strategy = d_awl_strategy
         self.t_awl_version = t_awl_version
-        self.num_polarity_classes = num_polarity_classes
-        
-        # Load pretrained T5 model
-        self.backbone = T5ForConditionalGeneration.from_pretrained(model_name)
-        self.tokenizer = T5Tokenizer.from_pretrained(model_name)
-        
-        # Get model dimensions
-        self.hidden_dim = self.backbone.config.d_model
-        
-        # D-AWL module
-        self.d_awl = DataLevelAWL(strategy=d_awl_strategy)
-        
-        # T-AWL module
-        self.t_awl = TaskLevelAWL(num_tasks=3, alf_version=t_awl_version)
-        
-        # Task-specific classification head for polarity
-        # (for fine-grained control if needed)
-        self.polarity_head = nn.Sequential(
-            nn.Linear(self.hidden_dim, self.hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(0.1),
-            nn.Linear(self.hidden_dim, num_polarity_classes)
+
+        self.backbone = (
+            backbone if backbone is not None
+            else T5ForConditionalGeneration.from_pretrained(model_name)
         )
-        
-        logger.info(f"Initialized MT-ISA model:")
-        logger.info(f"  Backbone: {model_name}")
-        logger.info(f"  D-AWL strategy: {d_awl_strategy}")
-        logger.info(f"  T-AWL version: {t_awl_version}")
-        logger.info(f"  Hidden dim: {self.hidden_dim}")
-    
-    def forward(
-        self,
-        aspect_input_ids: torch.Tensor,
-        aspect_attention_mask: torch.Tensor,
-        opinion_input_ids: torch.Tensor,
-        opinion_attention_mask: torch.Tensor,
-        polarity_input_ids: torch.Tensor,
-        polarity_attention_mask: torch.Tensor,
-        aspect_labels: Optional[torch.Tensor] = None,
-        aspect_confidence: Optional[torch.Tensor] = None,
-        opinion_labels: Optional[torch.Tensor] = None,
-        opinion_confidence: Optional[torch.Tensor] = None,
-        polarity_labels: Optional[torch.Tensor] = None,
-        polarity_label_id: Optional[torch.Tensor] = None,
+        self.tokenizer = (
+            tokenizer if tokenizer is not None
+            else AutoTokenizer.from_pretrained(model_name)
+        )
 
-        return_losses: bool = True
-    ) -> Dict:
-        """
-        Forward pass for all three tasks
-        
-        Returns:
-            Dictionary with losses and predictions for each task
-        """
-        outputs = {}
-        
-        # ==================== ASPECT TASK ====================
-        if aspect_input_ids is not None:
-            aspect_output = self.backbone(
-                input_ids=aspect_input_ids,
-                attention_mask=aspect_attention_mask,
-                labels=aspect_labels,
-                decoder_attention_mask=aspect_labels != -100 if aspect_labels is not None else None
-            )
-            
-            aspect_loss = aspect_output.loss
-            
-            # Apply D-AWL if confidence scores provided
-            if aspect_confidence is not None and aspect_loss is not None:
-                if self.d_awl_strategy == 'output':
-                    aspect_loss = self.d_awl(
-                        loss=aspect_loss,
-                        confidence_scores=aspect_confidence
-                    )
-            
-            outputs['aspect_loss'] = aspect_loss
-            outputs['aspect_logits'] = aspect_output.logits
-        
-        # ==================== OPINION TASK ====================
-        if opinion_input_ids is not None:
-            opinion_output = self.backbone(
-                input_ids=opinion_input_ids,
-                attention_mask=opinion_attention_mask,
-                labels=opinion_labels,
-                decoder_attention_mask=opinion_labels != -100 if opinion_labels is not None else None
-            )
-            
-            opinion_loss = opinion_output.loss
-            
-            # Apply D-AWL if confidence scores provided
-            if opinion_confidence is not None and opinion_loss is not None:
-                if self.d_awl_strategy == 'output':
-                    opinion_loss = self.d_awl(
-                        loss=opinion_loss,
-                        confidence_scores=opinion_confidence
-                    )
-            
-            outputs['opinion_loss'] = opinion_loss
-            outputs['opinion_logits'] = opinion_output.logits
-        
-        # ==================== POLARITY TASK ====================
-        if polarity_input_ids is not None:
-            encoder_output = self.backbone.encoder(
-                input_ids=polarity_input_ids,
-                attention_mask=polarity_attention_mask,
-            )
-            cls_hidden = encoder_output.last_hidden_state[:, 0, :]
-            polarity_logits = self.polarity_head(cls_hidden)
+        self.d_awl = DataLevelAWL(strategy=d_awl_strategy)
+        self.t_awl = TaskLevelAWL(num_tasks=len(TASK_NAMES), alf_version=t_awl_version)
 
-            outputs['polarity_logits'] = polarity_logits
-
-            if polarity_label_id is not None:
-                polarity_loss = nn.functional.cross_entropy(
-                    polarity_logits,
-                    polarity_label_id.long()
-                )
-                outputs['polarity_loss'] = polarity_loss
-            elif polarity_labels is not None:
-                polarity_loss = self.backbone(
-                    input_ids=polarity_input_ids,
-                    attention_mask=polarity_attention_mask,
-                    labels=polarity_labels,
-                    decoder_attention_mask=polarity_labels != -100 if polarity_labels is not None else None
-                ).loss
-                outputs['polarity_loss'] = polarity_loss
-        
-        # ==================== TASK-LEVEL AWL ====================
-        if return_losses and all(k in outputs for k in ['aspect_loss', 'opinion_loss', 'polarity_loss']):
-            aspect_loss = outputs['aspect_loss']
-            opinion_loss = outputs['opinion_loss']
-            polarity_loss = outputs['polarity_loss']
-            
-            # Compute combined loss with T-AWL
-            combined_loss = self.t_awl(
-                losses=(aspect_loss, opinion_loss, polarity_loss),
-                reduction='mean'
+        first_ids = []
+        for word in POLARITY_WORDS:
+            ids = self.tokenizer(word, add_special_tokens=False).input_ids
+            first_ids.append(ids[0])
+            logger.info("Polarity word %-9s -> token ids %s", word, ids)
+        if len(set(first_ids)) != len(POLARITY_WORDS):
+            raise ValueError(
+                f"Polarity words share a first token {first_ids}; "
+                "pick different verbalizers."
             )
-            
-            outputs['combined_loss'] = combined_loss
-            
-            # Store task weights for monitoring
-            outputs['task_weights'] = self.t_awl.get_task_weights()
-        
-        return outputs
-    
-    def predict_polarity(
+        self.register_buffer(
+            "polarity_first_ids", torch.tensor(first_ids, dtype=torch.long), persistent=False
+        )
+
+        logger.info("MT-ISA model: %s | D-AWL=%s | T-AWL=%s",
+                    model_name, d_awl_strategy, t_awl_version)
+
+    # ------------------------------------------------------------------ utils
+    @staticmethod
+    def _per_sample_nll(logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+        """Mean token NLL per sample, fp32, padding (-100) ignored.  -> [B]"""
+        logits = logits.float()
+        nll = F.cross_entropy(
+            logits.transpose(1, 2), labels, ignore_index=-100, reduction="none"
+        )  # [B, T]; 0 at ignored positions
+        n_tok = (labels != -100).float().sum(dim=1).clamp(min=1.0)
+        return nll.sum(dim=1) / n_tok
+
+    def _aux_loss(
         self,
         input_ids: torch.Tensor,
-        attention_mask: torch.Tensor
+        attention_mask: torch.Tensor,
+        labels: torch.Tensor,
+        confidence: Optional[torch.Tensor],
     ) -> torch.Tensor:
-        """
-        Predict polarity class for input
-        
-        Args:
-            input_ids: Tokenized input
-            attention_mask: Attention mask
-            
-        Returns:
-            Predicted class logits or probabilities
-        """
-        # Get encoder output
-        encoder_output = self.backbone.encoder(
-            input_ids=input_ids,
-            attention_mask=attention_mask
+        emb = self.backbone.get_input_embeddings()(input_ids)
+        emb = self.d_awl.scale_embeddings(emb, confidence)          # input strategy
+        out = self.backbone(inputs_embeds=emb, attention_mask=attention_mask, labels=labels)
+        per_sample = self._per_sample_nll(out.logits, labels)
+        per_sample = self.d_awl.weight_sample_losses(per_sample, confidence)  # output strategy
+        return per_sample.mean()
+
+    # ---------------------------------------------------------------- forward
+    def forward(
+        self,
+        polarity_input_ids: torch.Tensor,
+        polarity_attention_mask: torch.Tensor,
+        polarity_labels: torch.Tensor,
+        aspect_input_ids: Optional[torch.Tensor] = None,
+        aspect_attention_mask: Optional[torch.Tensor] = None,
+        aspect_labels: Optional[torch.Tensor] = None,
+        aspect_confidence: Optional[torch.Tensor] = None,
+        opinion_input_ids: Optional[torch.Tensor] = None,
+        opinion_attention_mask: Optional[torch.Tensor] = None,
+        opinion_labels: Optional[torch.Tensor] = None,
+        opinion_confidence: Optional[torch.Tensor] = None,
+    ) -> Dict:
+        outputs: Dict = {}
+
+        # ---- primary task: polarity (no D-AWL: gold labels, no confidence) ----
+        pol = self.backbone(
+            input_ids=polarity_input_ids,
+            attention_mask=polarity_attention_mask,
+            labels=polarity_labels,
         )
-        encoder_hidden = encoder_output.last_hidden_state
-        
-        # Use [CLS]-like token (first token)
-        cls_hidden = encoder_hidden[:, 0, :]
-        
-        # Pass through classification head
-        logits = self.polarity_head(cls_hidden)
-        
-        return logits
-    
-    def get_model_info(self) -> Dict:
-        """Get model information"""
-        total_params = sum(p.numel() for p in self.parameters())
-        trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
-        
-        return {
-            'model_name': self.model_name,
-            'hidden_dim': self.hidden_dim,
-            'total_parameters': total_params,
-            'trainable_parameters': trainable_params,
-            'd_awl_strategy': self.d_awl_strategy,
-            't_awl_version': self.t_awl_version,
-            'task_weights': self.t_awl.get_task_weights()
-        }
+        polarity_loss = self._per_sample_nll(pol.logits, polarity_labels).mean()
+        outputs["polarity_loss"] = polarity_loss
+        # decoder step 0 predicts the first label token -> 3-way classification
+        outputs["polarity_logits"] = (
+            pol.logits[:, 0, :].index_select(-1, self.polarity_first_ids).float()
+        )
+
+        have_aux = aspect_input_ids is not None and opinion_input_ids is not None
+        if not have_aux:
+            outputs["combined_loss"] = polarity_loss
+            return outputs
+
+        # ---- auxiliary tasks ----
+        aspect_loss = self._aux_loss(
+            aspect_input_ids, aspect_attention_mask, aspect_labels, aspect_confidence
+        )
+        opinion_loss = self._aux_loss(
+            opinion_input_ids, opinion_attention_mask, opinion_labels, opinion_confidence
+        )
+        outputs["aspect_loss"] = aspect_loss
+        outputs["opinion_loss"] = opinion_loss
+
+        # ---- task-level AWL ----
+        outputs["combined_loss"] = self.t_awl((aspect_loss, opinion_loss, polarity_loss))
+        return outputs
+
+    # ------------------------------------------------------------- inference
+    @torch.no_grad()
+    def predict_polarity(
+        self, input_ids: torch.Tensor, attention_mask: torch.Tensor
+    ) -> torch.Tensor:
+        """Returns [B, 3] logits over (positive, negative, neutral)."""
+        dec = torch.full(
+            (input_ids.size(0), 1),
+            self.backbone.config.decoder_start_token_id,
+            dtype=torch.long,
+            device=input_ids.device,
+        )
+        out = self.backbone(
+            input_ids=input_ids, attention_mask=attention_mask, decoder_input_ids=dec
+        )
+        return out.logits[:, 0, :].index_select(-1, self.polarity_first_ids).float()
 
 
-def test_model():
-    """Test script for MT-ISA model"""
-    print("Testing MT-ISA model...")
-    
-    # Initialize model
-    model = MTISAModel(
-        model_name='google/flan-t5-small',
-        d_awl_strategy='input',
-        t_awl_version='alf2'
+def _self_test():
+    """python mt_isa_model.py  ->  quick shape / NaN check with flan-t5-small."""
+    logging.basicConfig(level=logging.INFO)
+    model = MTISAModel("google/flan-t5-small", d_awl_strategy="input_output")
+    tok = model.tokenizer
+    enc = tok(["The food is great.", "Service was slow."], padding=True, return_tensors="pt")
+    lab = tok(["positive", "negative"], padding=True, return_tensors="pt").input_ids
+    lab[lab == tok.pad_token_id] = -100
+    conf = torch.tensor([0.9, 0.6])
+    out = model(
+        polarity_input_ids=enc.input_ids, polarity_attention_mask=enc.attention_mask,
+        polarity_labels=lab,
+        aspect_input_ids=enc.input_ids, aspect_attention_mask=enc.attention_mask,
+        aspect_labels=lab, aspect_confidence=conf,
+        opinion_input_ids=enc.input_ids, opinion_attention_mask=enc.attention_mask,
+        opinion_labels=lab, opinion_confidence=conf,
     )
-    
-    # Print model info
-    info = model.get_model_info()
-    print(f"\nModel Info:")
-    for key, value in info.items():
-        print(f"  {key}: {value}")
-    
-    # Create dummy inputs
-    batch_size = 2
-    seq_len = 32
-    
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = model.to(device)
-    
-    # Dummy tokenized inputs
-    input_ids = torch.randint(0, 32100, (batch_size, seq_len)).to(device)
-    attention_mask = torch.ones_like(input_ids).to(device)
-    labels = torch.randint(0, 32100, (batch_size, seq_len)).to(device)
-    polarity_label_id = torch.randint(0, 3, (batch_size,)).to(device)
-    confidence = torch.rand(batch_size).to(device) * 0.4 + 0.6  # [0.6, 1.0]
-
-    # Forward pass
-    print("\nForward pass...")
-    with torch.no_grad():
-        outputs = model(
-            aspect_input_ids=input_ids,
-            aspect_attention_mask=attention_mask,
-            aspect_labels=labels,
-            aspect_confidence=confidence,
-
-            opinion_input_ids=input_ids,
-            opinion_attention_mask=attention_mask,
-            opinion_labels=labels,
-            opinion_confidence=confidence,
-
-            polarity_input_ids=input_ids,
-            polarity_attention_mask=attention_mask,
-            polarity_label_id=polarity_label_id
-        )
-    
-    print(f"Combined loss: {outputs['combined_loss'].item():.4f}")
-    print(f"Task weights: {outputs['task_weights']}")
-    print("\n✓ Model test successful!")
+    for k, v in out.items():
+        print(k, tuple(v.shape) if v.dim() else float(v))
+    assert torch.isfinite(out["combined_loss"])
+    print("task weights:", model.t_awl.get_task_weights())
+    print("OK")
 
 
-if __name__ == '__main__':
-    test_model()
+if __name__ == "__main__":
+    _self_test()
