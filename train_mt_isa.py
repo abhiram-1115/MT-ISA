@@ -22,6 +22,7 @@ import json
 import logging
 import math
 import random
+import sys
 from collections import Counter
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -259,7 +260,9 @@ def run_epoch(
     if train:
         optimizer.zero_grad(set_to_none=True)
 
-    pbar = tqdm(loader, desc=desc, leave=False)
+    # progress bar only in an interactive terminal; when output is piped to a log
+    # file it would print one line per update
+    pbar = tqdm(loader, desc=desc, leave=False, disable=not sys.stderr.isatty())
     for i, batch in enumerate(pbar):
         batch = move_batch(batch, device)
         inputs = {k: v for k, v in batch.items()
