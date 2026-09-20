@@ -1,0 +1,31 @@
+PER RUN
+name            lr      seed  test_acc  test_F1   val_F1    best_ep 
+in_conv         1e-4    42    0.5880    0.5851    0.6462    13      
+in_stored       1e-4    1     0.6217    0.6171    0.7302    17      
+in_stored       1e-4    2     0.6292    0.6321    0.7149    7       
+in_stored       1e-4    42    0.5993    0.5989    0.6572    13      
+mtl_equal       1e-4    42    0.5805    0.5760    0.6422    16      
+mtl_tawl        1e-4    1     0.6442    0.6432    0.7417    20      
+mtl_tawl        1e-4    2     0.6442    0.6401    0.7113    11      
+mtl_tawl        1e-4    42    0.5955    0.5934    0.6591    13      
+out_conv        1e-4    42    0.6030    0.6001    0.6542    13      
+out_stored      1e-4    1     0.6330    0.6271    0.7674    17      
+out_stored      1e-4    2     0.6517    0.6459    0.7048    11      
+out_stored      1e-4    42    0.6517    0.6426    0.6336    6       
+polonly         1e-4    1     0.6330    0.6301    0.7561    17      
+polonly         1e-4    2     0.6742    0.6738    0.7140    4       
+polonly         1e-4    42    0.5993    0.5970    0.6719    10      
+polonly         1e-5    42    0.5618    0.5583    0.6081    14      
+tawl_dropnc     1e-4    42    0.4869    0.4786    0.4898    8       
+
+GROUPED (mean +/- std over seeds; n = number of seeds)
+name            lr      n   test_acc            test_F1             
+in_conv         1e-4    1   0.5880              0.5851              
+in_stored       1e-4    3   0.6167 +/- 0.0156   0.6161 +/- 0.0166   
+mtl_equal       1e-4    1   0.5805              0.5760              
+mtl_tawl        1e-4    3   0.6280 +/- 0.0281   0.6256 +/- 0.0279   
+out_conv        1e-4    1   0.6030              0.6001              
+out_stored      1e-4    3   0.6454 +/- 0.0108   0.6385 +/- 0.0100   
+polonly         1e-4    3   0.6355 +/- 0.0375   0.6336 +/- 0.0385   
+polonly         1e-5    1   0.5618              0.5583              
+tawl_dropnc     1e-4    1   0.4869              0.4786              
