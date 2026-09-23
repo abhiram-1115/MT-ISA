@@ -15,7 +15,7 @@
 param(
     [switch]$Smoke,
     [switch]$Resume,
-    [string]$Input = "data/processed/restaurant14_train_implicit.json",
+    [string]$TrainFile = "data/processed/restaurant14_train_implicit.json",
     [int]$MaxEpochs = 10,
     [int]$Workers = 1
 )
@@ -61,7 +61,7 @@ foreach ($name in $Models.Keys) {
     $timer = [System.Diagnostics.Stopwatch]::StartNew()
 
     $a = @("auxiliary_generator.py",
-           "--input", $Input, "--output", $outJson,
+           "--input", $TrainFile, "--output", $outJson,
            "--model", $tag, "--max-epochs", "$MaxEpochs", "--workers", "$Workers")
     if ($MaxInstances) { $a += @("--max-instances", "$MaxInstances") }
     if ($Resume -and -not $Smoke) { $a += "--resume" }
