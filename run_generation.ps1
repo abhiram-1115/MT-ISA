@@ -14,10 +14,11 @@
 # =============================================================================
 param(
     [switch]$Smoke,
-    [switch]$Resume,
     [string]$TrainFile = "data/processed/restaurant14_train_implicit.json",
     [int]$MaxEpochs = 10,
-    [int]$Workers = 1
+    [int]$Workers = 1,
+    [string]$Models = "",   # comma-separated subset/order, e.g. "qwen7b,llama1b" - default runs all, in priority order
+    [int]$SmokeInstances = 8   # instances per model in -Smoke mode; keep this small, it's just a wiring check
 )
 
 $ErrorActionPreference = "Continue"
@@ -28,31 +29,45 @@ $env:PYTHONWARNINGS = "ignore::FutureWarning"
 # ---- edit this list to change which generators you compare -----------------
 # key = short label used in file names and the comparison table
 # value = the exact Ollama model tag (must already be `ollama pull`-ed)
-$Models = [ordered]@{
-    "llama1b"  = "llama3.2:1b"
-    "qwen3b"   = "qwen2.5:3b"
-    "qwen7b"   = "qwen2.5:7b"
+$AllModels = [ordered]@{
+    "qwen7b"    = "qwen2.5:7b"    # best in the smoke test: highest conv%, best on neutral, fewest iters
+    "llama1b"   = "llama3.2:1b"   # extreme-small contrast point
+    "qwen3b"    = "qwen2.5:3b"
     "mistral7b" = "mistral"
 }
 # ------------------------------------------------------------------------------
+
+if ($Models) {
+    $ModelsToRun = [ordered]@{}
+    foreach ($key in ($Models -split ",").Trim()) {
+        if ($AllModels.Contains($key)) {
+            $ModelsToRun[$key] = $AllModels[$key]
+        } else {
+            Write-Host "WARNING: unknown model key '$key' (known: $($AllModels.Keys -join ', ')) - skipping"
+        }
+    }
+    if ($ModelsToRun.Count -eq 0) { Write-Host "ERROR: no valid models in -Models '$Models'"; exit 1 }
+} else {
+    $ModelsToRun = $AllModels
+}
 
 $OutDir = "data/auxiliary"
 New-Item -ItemType Directory -Force -Path $OutDir, "logs" | Out-Null
 
 $MaxInstances = $null
 if ($Smoke) {
-    $MaxInstances = 30
+    $MaxInstances = $SmokeInstances
     Write-Host "[SMOKE MODE] $MaxInstances instances per model, for a quick pipeline check"
 }
 
-Write-Host "Models to run: $($Models.Keys -join ', ')"
+Write-Host "Models to run: $($ModelsToRun.Keys -join ', ')"
 Write-Host "Start: $(Get-Date)"
 $AllTimer = [System.Diagnostics.Stopwatch]::StartNew()
 
 $FileArgs = @()
 
-foreach ($name in $Models.Keys) {
-    $tag = $Models[$name]
+foreach ($name in $ModelsToRun.Keys) {
+    $tag = $ModelsToRun[$name]
     $suffix = if ($Smoke) { "smoke" } else { "full" }
     $outJson = "$OutDir/restaurant14_train_implicit_aux_${name}_${suffix}.json"
 
@@ -64,7 +79,7 @@ foreach ($name in $Models.Keys) {
            "--input", $TrainFile, "--output", $outJson,
            "--model", $tag, "--max-epochs", "$MaxEpochs", "--workers", "$Workers")
     if ($MaxInstances) { $a += @("--max-instances", "$MaxInstances") }
-    if ($Resume -and -not $Smoke) { $a += "--resume" }
+    if (-not $Smoke) { $a += "--resume" }   # always resumable for full runs: safe no-op if starting fresh
 
     & python @a 2>&1 | Tee-Object -FilePath "logs/gen_${name}_${suffix}.log"
 
