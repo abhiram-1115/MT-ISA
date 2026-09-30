@@ -1,0 +1,33 @@
+{
+  "acc": 0.5543071161048689,
+  "macro_f1": 0.5444981213097155,
+  "best_epoch": 1,
+  "val_f1": 0.48181818181818176,
+  "args": {
+    "train_data": "data/processed/restaurant14_train_implicit.json",
+    "aux_data": "data/auxiliary/restaurants_train_implicit_aux.json",
+    "val_data": null,
+    "test_data": "data/processed/restaurant14_test_implicit.json",
+    "model_name": "google/flan-t5-base",
+    "output_dir": "models/smoke_small",
+    "batch_size": 1,
+    "grad_accum": 1,
+    "lr": 1e-05,
+    "awl_lr": 0.01,
+    "warmup_ratio": 0.06,
+    "num_epochs": 1,
+    "patience": 10,
+    "validation_fraction": 0.15,
+    "max_length": 128,
+    "d_awl_strategy": "input",
+    "t_awl_version": "alf2",
+    "freeze_t_awl": false,
+    "conf_source": "stored",
+    "drop_nonconverged": false,
+    "polarity_only": false,
+    "bf16": false,
+    "seed": 42,
+    "num_workers": 0,
+    "max_instances": 64
+  }
+}
