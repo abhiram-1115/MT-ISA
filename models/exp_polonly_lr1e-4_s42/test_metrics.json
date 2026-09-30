@@ -1,11 +1,11 @@
 {
-  "acc": 0.599250936329588,
-  "macro_f1": 0.5970162164336922,
-  "best_epoch": 10,
-  "val_f1": 0.6719326982484878,
+  "acc": 0.6104868913857678,
+  "macro_f1": 0.6104227730617554,
+  "best_epoch": 4,
+  "val_f1": 0.6644932261102658,
   "args": {
     "train_data": "data/processed/restaurant14_train_implicit.json",
-    "aux_data": "data/auxiliary/restaurants_train_implicit_aux.json",
+    "aux_data": "data/auxiliary/restaurant14_train_implicit_aux_qwen7b_full.json",
     "val_data": null,
     "test_data": "data/processed/restaurant14_test_implicit.json",
     "model_name": "google/flan-t5-base",
