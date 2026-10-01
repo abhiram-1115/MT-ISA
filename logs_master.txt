@@ -3306,3 +3306,1454 @@ D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:309: Futur
 [done] out_stored_lr1e-4_s42 in 381s
 
 =================== [run] in_conv_lr1e-4_s42   09/30/2026 10:02:15 ===================
+**********************
+Windows PowerShell transcript start
+Start time: 20261001182349
+Username: HAWAMAHAL\nextt
+RunAs User: HAWAMAHAL\nextt
+Configuration Name: 
+Machine: HAWAMAHAL (Microsoft Windows NT 10.0.26200.0)
+Host Application: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -noexit -command try { . "c:\Users\nextt\AppData\Local\Programs\Microsoft VS Code\04c0d99f4f\resources\app\out\vs\workbench\contrib\terminal\common\scripts\shellIntegration.ps1" } catch {}
+Process ID: 34444
+PSVersion: 5.1.26100.9444
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9444
+BuildVersion: 10.0.26100.9444
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+Config: model=google/flan-t5-base epochs=20 batch=32x1 bf16=True
+Start: 10/01/2026 18:25:32
+[skip] polonly_lr1e-5_s42 (already done)
+[skip] polonly_lr1e-4_s42 (already done)
+
+>>> Stage 0 picked LR=1e-4 (by validation macro-F1)
+[skip] mtl_equal_lr1e-4_s42 (already done)
+[skip] mtl_tawl_lr1e-4_s42 (already done)
+[skip] in_stored_lr1e-4_s42 (already done)
+[skip] out_stored_lr1e-4_s42 (already done)
+
+=================== [run] in_conv_lr1e-4_s42   10/01/2026 18:25:32 ===================
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:441: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+2026-10-01 18:27:04,821 - INFO - Device: cuda | args: {'train_data': 'data/processed/restaurant14_train_implicit.json', 'aux_data': 'data/auxiliary/restaurant14_train_implicit_aux_qwen7b_full.json', 'val_data': None, 'test_data': 'data/processed/restaurant14_test_implicit.json', 'model_name': 'google/flan-t5-base', 'output_dir': 'models/exp_in_conv_lr1e-4_s42', 'batch_size': 32, 'grad_accum': 1, 'eval_batch_size': 32, 'lr': 0.0001, 'awl_lr': 0.01, 'warmup_ratio': 0.06, 'num_epochs': 20, 'patience': 10, 'validation_fraction': 0.15, 'max_length': 128, 'd_awl_strategy': 'input', 't_awl_version': 'alf2', 'freeze_t_awl': False, 'conf_source': 'convergence', 'drop_nonconverged': False, 'keep_unk_labels': False, 'polarity_only': False, 'bf16': True, 'seed': 42, 'num_workers': 0, 'max_instances': None}
+2026-10-01 18:27:05,011 - INFO - ---- auxiliary data diagnostics (1030 rows) ----
+2026-10-01 18:27:05,011 - INFO - converged: 840 (81.6%) | mean iterations: 2.22
+2026-10-01 18:27:05,011 - INFO - aspect == target: 1 (0.1%)
+2026-10-01 18:27:05,011 - INFO - aspect-conf values (top): [(0.9, 405), (0.8, 361), (0.95, 246), (0.85, 11), (0.5, 7)]
+2026-10-01 18:27:05,011 - INFO - opinion-conf values (top): [(0.8, 775), (0.9, 174), (0.7, 34), (0.85, 30), (0.95, 14), (0.75, 1)]
+2026-10-01 18:27:05,011 - INFO - most common opinions: [('neutral', 62), ('recommended', 13), ('informative', 10), ('indifferent', 9), ('high quality', 9), ('poor quality', 7), ('delicious', 7), ('highly recommended', 5)]
+2026-10-01 18:27:05,011 - INFO - ------------------------------------------------
+2026-10-01 18:27:05,011 - INFO - Train instances: 1030 | implicit+valid: 1030 | with aux: 1030
+2026-10-01 18:27:05,011 - INFO - train: 876 instances | {'neutral': 358, 'negative': 218, 'positive': 300} | majority-class acc 0.409
+2026-10-01 18:27:05,012 - INFO - val: 154 instances | {'negative': 38, 'positive': 53, 'neutral': 63} | majority-class acc 0.409
+2026-10-01 18:27:05,754 - INFO - Dropped train rows whose aux labels contain <unk> (non-English text): 876 -> 871
+2026-10-01 18:27:06,782 - INFO - [aspect] input : Given the sentence "I don't know about you guys, but when I go somewhere to eat I go for the food not for the atmosphere.", what is the mentioned aspect towards atmosphere?
+2026-10-01 18:27:06,782 - INFO - [aspect] target: Focus
+2026-10-01 18:27:06,782 - INFO - [opinion] input : Given the sentence "I don't know about you guys, but when I go somewhere to eat I go for the food not for the atmosphere.", the mentioned aspect towards atmosphere is "Focus". What is the underlying opinion towards atmosphere?
+2026-10-01 18:27:06,782 - INFO - [opinion] target: Neutral
+2026-10-01 18:27:06,782 - INFO - [polarity] input : Given the sentence "I don't know about you guys, but when I go somewhere to eat I go for the food not for the atmosphere.", what is the sentiment polarity towards atmosphere? Options: positive, negative, neutral.
+2026-10-01 18:27:06,782 - INFO - [polarity] target: neutral
+2026-10-01 18:27:06,822 - INFO - [example confidences] aspect=0.50 opinion=0.50
+2026-10-01 18:27:09,858 - INFO - Polarity word positive  -> token ids [1465]
+2026-10-01 18:27:09,858 - INFO - Polarity word negative  -> token ids [2841]
+2026-10-01 18:27:09,858 - INFO - Polarity word neutral   -> token ids [7163]
+2026-10-01 18:27:09,858 - INFO - MT-ISA model: google/flan-t5-base | D-AWL=input | T-AWL=alf2
+2026-10-01 18:27:35,881 - INFO - Zero-shot Flan-T5 on val: loss 0.6762 | F1 0.3761 | Acc 0.4481
+2026-10-01 18:27:35,881 - INFO - ======================================================================
+2026-10-01 18:27:35,881 - INFO - Epoch 1/20
+2026-10-01 18:28:10,395 - INFO - Train loss 10.0637 | F1 0.4746 | Acc 0.4684 | parts {'aspect': 3.9537, 'opinion': 3.6377, 'polarity': 0.6238} | skipped 0
+2026-10-01 18:28:10,395 - INFO - Val   loss 0.4969 | F1 0.5216 | Acc 0.5195
+2026-10-01 18:28:10,395 - INFO - Task weights (normalised): {'aspect': 0.328, 'opinion': 0.327, 'polarity': 0.345} | sigma^2: {'aspect': 1.144, 'opinion': 1.145, 'polarity': 1.085}
+2026-10-01 18:28:12,672 - INFO - New best (val macro-F1 0.5216) saved.
+2026-10-01 18:28:12,672 - INFO - ======================================================================
+2026-10-01 18:28:12,673 - INFO - Epoch 2/20
+2026-10-01 18:28:39,285 - INFO - Train loss 7.1007 | F1 0.5248 | Acc 0.5212 | parts {'aspect': 2.6739, 'opinion': 2.8401, 'polarity': 0.5045} | skipped 0
+2026-10-01 18:28:39,285 - INFO - Val   loss 0.4592 | F1 0.5588 | Acc 0.5519
+2026-10-01 18:28:39,285 - INFO - Task weights (normalised): {'aspect': 0.286, 'opinion': 0.283, 'polarity': 0.431} | sigma^2: {'aspect': 1.499, 'opinion': 1.519, 'polarity': 0.996}
+2026-10-01 18:28:44,416 - INFO - New best (val macro-F1 0.5588) saved.
+2026-10-01 18:28:44,416 - INFO - ======================================================================
+2026-10-01 18:28:44,416 - INFO - Epoch 3/20
+2026-10-01 18:29:13,396 - INFO - Train loss 5.9397 | F1 0.5810 | Acc 0.5775 | parts {'aspect': 2.2748, 'opinion': 2.5028, 'polarity': 0.4204} | skipped 0
+2026-10-01 18:29:13,396 - INFO - Val   loss 0.4626 | F1 0.5975 | Acc 0.5909
+2026-10-01 18:29:13,396 - INFO - Task weights (normalised): {'aspect': 0.246, 'opinion': 0.239, 'polarity': 0.515} | sigma^2: {'aspect': 1.819, 'opinion': 1.871, 'polarity': 0.869}
+2026-10-01 18:29:20,661 - INFO - New best (val macro-F1 0.5975) saved.
+2026-10-01 18:29:20,662 - INFO - ======================================================================
+2026-10-01 18:29:20,662 - INFO - Epoch 4/20
+2026-10-01 18:29:48,190 - INFO - Train loss 5.4093 | F1 0.7007 | Acc 0.6969 | parts {'aspect': 2.0671, 'opinion': 2.2692, 'polarity': 0.3524} | skipped 0
+2026-10-01 18:29:48,191 - INFO - Val   loss 0.5018 | F1 0.6138 | Acc 0.6234
+2026-10-01 18:29:48,191 - INFO - Task weights (normalised): {'aspect': 0.221, 'opinion': 0.212, 'polarity': 0.567} | sigma^2: {'aspect': 2.051, 'opinion': 2.134, 'polarity': 0.8}
+2026-10-01 18:29:50,624 - INFO - New best (val macro-F1 0.6138) saved.
+2026-10-01 18:29:50,624 - INFO - ======================================================================
+2026-10-01 18:29:50,624 - INFO - Epoch 5/20
+2026-10-01 18:30:20,140 - INFO - Train loss 5.1649 | F1 0.7234 | Acc 0.7199 | parts {'aspect': 1.8888, 'opinion': 2.1812, 'polarity': 0.3187} | skipped 0
+2026-10-01 18:30:20,140 - INFO - Val   loss 0.5004 | F1 0.6219 | Acc 0.6234
+2026-10-01 18:30:20,140 - INFO - Task weights (normalised): {'aspect': 0.203, 'opinion': 0.193, 'polarity': 0.603} | sigma^2: {'aspect': 2.203, 'opinion': 2.323, 'polarity': 0.743}
+2026-10-01 18:30:26,262 - INFO - New best (val macro-F1 0.6219) saved.
+2026-10-01 18:30:26,262 - INFO - ======================================================================
+2026-10-01 18:30:26,262 - INFO - Epoch 6/20
+2026-10-01 18:30:56,280 - INFO - Train loss 4.9730 | F1 0.7877 | Acc 0.7865 | parts {'aspect': 1.8062, 'opinion': 2.0912, 'polarity': 0.2552} | skipped 0
+2026-10-01 18:30:56,280 - INFO - Val   loss 0.5167 | F1 0.6453 | Acc 0.6494
+2026-10-01 18:30:56,280 - INFO - Task weights (normalised): {'aspect': 0.185, 'opinion': 0.173, 'polarity': 0.642} | sigma^2: {'aspect': 2.286, 'opinion': 2.442, 'polarity': 0.657}
+2026-10-01 18:30:58,766 - INFO - New best (val macro-F1 0.6453) saved.
+2026-10-01 18:30:58,766 - INFO - ======================================================================
+2026-10-01 18:30:58,766 - INFO - Epoch 7/20
+2026-10-01 18:31:24,201 - INFO - Train loss 4.8296 | F1 0.7999 | Acc 0.7991 | parts {'aspect': 1.6616, 'opinion': 1.9824, 'polarity': 0.2383} | skipped 0
+2026-10-01 18:31:24,201 - INFO - Val   loss 0.5976 | F1 0.6085 | Acc 0.6169
+2026-10-01 18:31:24,201 - INFO - Task weights (normalised): {'aspect': 0.173, 'opinion': 0.16, 'polarity': 0.666} | sigma^2: {'aspect': 2.318, 'opinion': 2.511, 'polarity': 0.603}
+2026-10-01 18:31:24,201 - INFO - No improvement: 1/10
+2026-10-01 18:31:24,201 - INFO - ======================================================================
+2026-10-01 18:31:24,201 - INFO - Epoch 8/20
+2026-10-01 18:31:49,990 - INFO - Train loss 4.6686 | F1 0.8585 | Acc 0.8588 | parts {'aspect': 1.5896, 'opinion': 1.8822, 'polarity': 0.1859} | skipped 0
+2026-10-01 18:31:49,990 - INFO - Val   loss 0.6626 | F1 0.6237 | Acc 0.6299
+2026-10-01 18:31:49,991 - INFO - Task weights (normalised): {'aspect': 0.164, 'opinion': 0.149, 'polarity': 0.687} | sigma^2: {'aspect': 2.319, 'opinion': 2.542, 'polarity': 0.553}
+2026-10-01 18:31:49,991 - INFO - No improvement: 2/10
+2026-10-01 18:31:49,991 - INFO - ======================================================================
+2026-10-01 18:31:49,991 - INFO - Epoch 9/20
+2026-10-01 18:32:20,801 - INFO - Train loss 4.5521 | F1 0.8957 | Acc 0.8944 | parts {'aspect': 1.5646, 'opinion': 1.8628, 'polarity': 0.1362} | skipped 0
+2026-10-01 18:32:20,801 - INFO - Val   loss 0.7682 | F1 0.6434 | Acc 0.6558
+2026-10-01 18:32:20,801 - INFO - Task weights (normalised): {'aspect': 0.149, 'opinion': 0.135, 'polarity': 0.717} | sigma^2: {'aspect': 2.311, 'opinion': 2.556, 'polarity': 0.48}
+2026-10-01 18:32:20,801 - INFO - No improvement: 3/10
+2026-10-01 18:32:20,801 - INFO - ======================================================================
+2026-10-01 18:32:20,801 - INFO - Epoch 10/20
+2026-10-01 18:32:48,669 - INFO - Train loss 4.4456 | F1 0.9140 | Acc 0.9139 | parts {'aspect': 1.5032, 'opinion': 1.8059, 'polarity': 0.1126} | skipped 0
+2026-10-01 18:32:48,669 - INFO - Val   loss 0.8131 | F1 0.6227 | Acc 0.6364
+2026-10-01 18:32:48,669 - INFO - Task weights (normalised): {'aspect': 0.138, 'opinion': 0.124, 'polarity': 0.738} | sigma^2: {'aspect': 2.293, 'opinion': 2.549, 'polarity': 0.428}
+2026-10-01 18:32:48,669 - INFO - No improvement: 4/10
+2026-10-01 18:32:48,669 - INFO - ======================================================================
+2026-10-01 18:32:48,669 - INFO - Epoch 11/20
+2026-10-01 18:33:16,636 - INFO - Train loss 4.3507 | F1 0.9255 | Acc 0.9254 | parts {'aspect': 1.4323, 'opinion': 1.7563, 'polarity': 0.0966} | skipped 0
+2026-10-01 18:33:16,636 - INFO - Val   loss 0.9740 | F1 0.6337 | Acc 0.6364
+2026-10-01 18:33:16,636 - INFO - Task weights (normalised): {'aspect': 0.131, 'opinion': 0.117, 'polarity': 0.752} | sigma^2: {'aspect': 2.268, 'opinion': 2.538, 'polarity': 0.395}
+2026-10-01 18:33:16,636 - INFO - No improvement: 5/10
+2026-10-01 18:33:16,636 - INFO - ======================================================================
+2026-10-01 18:33:16,636 - INFO - Epoch 12/20
+2026-10-01 18:33:43,904 - INFO - Train loss 4.2607 | F1 0.9474 | Acc 0.9472 | parts {'aspect': 1.3996, 'opinion': 1.7022, 'polarity': 0.0774} | skipped 0
+2026-10-01 18:33:43,904 - INFO - Val   loss 1.0109 | F1 0.6190 | Acc 0.6299
+2026-10-01 18:33:43,905 - INFO - Task weights (normalised): {'aspect': 0.124, 'opinion': 0.111, 'polarity': 0.765} | sigma^2: {'aspect': 2.244, 'opinion': 2.523, 'polarity': 0.365}
+2026-10-01 18:33:43,905 - INFO - No improvement: 6/10
+2026-10-01 18:33:43,905 - INFO - ======================================================================
+2026-10-01 18:33:43,905 - INFO - Epoch 13/20
+2026-10-01 18:34:12,074 - INFO - Train loss 4.1571 | F1 0.9654 | Acc 0.9656 | parts {'aspect': 1.339, 'opinion': 1.6904, 'polarity': 0.0545} | skipped 0
+2026-10-01 18:34:12,074 - INFO - Val   loss 1.0818 | F1 0.6277 | Acc 0.6364
+2026-10-01 18:34:12,074 - INFO - Task weights (normalised): {'aspect': 0.116, 'opinion': 0.102, 'polarity': 0.782} | sigma^2: {'aspect': 2.211, 'opinion': 2.505, 'polarity': 0.327}
+2026-10-01 18:34:12,074 - INFO - No improvement: 7/10
+2026-10-01 18:34:12,074 - INFO - ======================================================================
+2026-10-01 18:34:12,074 - INFO - Epoch 14/20
+2026-10-01 18:34:40,006 - INFO - Train loss 4.1549 | F1 0.9570 | Acc 0.9564 | parts {'aspect': 1.3293, 'opinion': 1.6719, 'polarity': 0.0607} | skipped 0
+2026-10-01 18:34:40,006 - INFO - Val   loss 1.0940 | F1 0.6353 | Acc 0.6494
+2026-10-01 18:34:40,006 - INFO - Task weights (normalised): {'aspect': 0.111, 'opinion': 0.098, 'polarity': 0.791} | sigma^2: {'aspect': 2.189, 'opinion': 2.49, 'polarity': 0.307}
+2026-10-01 18:34:40,006 - INFO - No improvement: 8/10
+2026-10-01 18:34:40,006 - INFO - ======================================================================
+2026-10-01 18:34:40,006 - INFO - Epoch 15/20
+2026-10-01 18:35:08,175 - INFO - Train loss 4.1160 | F1 0.9585 | Acc 0.9575 | parts {'aspect': 1.3452, 'opinion': 1.6408, 'polarity': 0.0512} | skipped 0
+2026-10-01 18:35:08,175 - INFO - Val   loss 1.2839 | F1 0.6347 | Acc 0.6429
+2026-10-01 18:35:08,175 - INFO - Task weights (normalised): {'aspect': 0.108, 'opinion': 0.094, 'polarity': 0.798} | sigma^2: {'aspect': 2.168, 'opinion': 2.475, 'polarity': 0.293}
+2026-10-01 18:35:08,175 - INFO - No improvement: 9/10
+2026-10-01 18:35:08,176 - INFO - ======================================================================
+2026-10-01 18:35:08,176 - INFO - Epoch 16/20
+2026-10-01 18:35:35,893 - INFO - Train loss 4.0762 | F1 0.9671 | Acc 0.9667 | parts {'aspect': 1.304, 'opinion': 1.6287, 'polarity': 0.0476} | skipped 0
+2026-10-01 18:35:35,893 - INFO - Val   loss 1.2424 | F1 0.6610 | Acc 0.6688
+2026-10-01 18:35:35,893 - INFO - Task weights (normalised): {'aspect': 0.105, 'opinion': 0.092, 'polarity': 0.803} | sigma^2: {'aspect': 2.153, 'opinion': 2.462, 'polarity': 0.282}
+2026-10-01 18:35:38,179 - INFO - New best (val macro-F1 0.6610) saved.
+2026-10-01 18:35:38,179 - INFO - ======================================================================
+2026-10-01 18:35:38,179 - INFO - Epoch 17/20
+2026-10-01 18:36:09,099 - INFO - Train loss 4.0254 | F1 0.9714 | Acc 0.9713 | parts {'aspect': 1.26, 'opinion': 1.6219, 'polarity': 0.0408} | skipped 0
+2026-10-01 18:36:09,099 - INFO - Val   loss 1.3545 | F1 0.6295 | Acc 0.6429
+2026-10-01 18:36:09,099 - INFO - Task weights (normalised): {'aspect': 0.103, 'opinion': 0.09, 'polarity': 0.807} | sigma^2: {'aspect': 2.136, 'opinion': 2.453, 'polarity': 0.273}
+2026-10-01 18:36:09,099 - INFO - No improvement: 1/10
+2026-10-01 18:36:09,099 - INFO - ======================================================================
+2026-10-01 18:36:09,099 - INFO - Epoch 18/20
+2026-10-01 18:36:36,762 - INFO - Train loss 4.0154 | F1 0.9734 | Acc 0.9736 | parts {'aspect': 1.2432, 'opinion': 1.6346, 'polarity': 0.0395} | skipped 0
+2026-10-01 18:36:36,762 - INFO - Val   loss 1.3740 | F1 0.6294 | Acc 0.6364
+2026-10-01 18:36:36,763 - INFO - Task weights (normalised): {'aspect': 0.101, 'opinion': 0.088, 'polarity': 0.811} | sigma^2: {'aspect': 2.121, 'opinion': 2.445, 'polarity': 0.265}
+2026-10-01 18:36:36,763 - INFO - No improvement: 2/10
+2026-10-01 18:36:36,763 - INFO - ======================================================================
+2026-10-01 18:36:36,763 - INFO - Epoch 19/20
+2026-10-01 18:37:05,175 - INFO - Train loss 3.9717 | F1 0.9739 | Acc 0.9736 | parts {'aspect': 1.2385, 'opinion': 1.5752, 'polarity': 0.0356} | skipped 0
+2026-10-01 18:37:05,176 - INFO - Val   loss 1.4177 | F1 0.6207 | Acc 0.6299
+2026-10-01 18:37:05,176 - INFO - Task weights (normalised): {'aspect': 0.1, 'opinion': 0.087, 'polarity': 0.813} | sigma^2: {'aspect': 2.113, 'opinion': 2.438, 'polarity': 0.26}
+2026-10-01 18:37:05,176 - INFO - No improvement: 3/10
+2026-10-01 18:37:05,176 - INFO - ======================================================================
+2026-10-01 18:37:05,176 - INFO - Epoch 20/20
+2026-10-01 18:37:34,188 - INFO - Train loss 3.9706 | F1 0.9761 | Acc 0.9759 | parts {'aspect': 1.2431, 'opinion': 1.5834, 'polarity': 0.0342} | skipped 0
+2026-10-01 18:37:34,188 - INFO - Val   loss 1.4200 | F1 0.6265 | Acc 0.6364
+2026-10-01 18:37:34,188 - INFO - Task weights (normalised): {'aspect': 0.1, 'opinion': 0.086, 'polarity': 0.814} | sigma^2: {'aspect': 2.11, 'opinion': 2.436, 'polarity': 0.259}
+2026-10-01 18:37:34,188 - INFO - No improvement: 4/10
+2026-10-01 18:37:34,190 - INFO - Done. Best val macro-F1 0.6610 at epoch 16
+2026-10-01 18:37:34,492 - INFO - test: 267 instances | {'neutral': 137, 'negative': 54, 'positive': 76} | majority-class acc 0.513
+2026-10-01 18:37:34,747 - INFO - TEST (best ckpt, epoch 16): Acc 0.6479 | macro-F1 0.6428
+2026-10-01 18:37:34,748 - INFO - Confusion matrix (rows=gold, cols=pred; order ['positive', 'negative', 'neutral']):
+[[60  8  8]
+ [10 37  7]
+ [40 21 76]]
+[done] in_conv_lr1e-4_s42 in 723s
+
+=================== [run] out_conv_lr1e-4_s42   10/01/2026 18:37:35 ===================
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:441: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+2026-10-01 18:37:39,549 - INFO - Device: cuda | args: {'train_data': 'data/processed/restaurant14_train_implicit.json', 'aux_data': 'data/auxiliary/restaurant14_train_implicit_aux_qwen7b_full.json', 'val_data': None, 'test_data': 'data/processed/restaurant14_test_implicit.json', 'model_name': 'google/flan-t5-base', 'output_dir': 'models/exp_out_conv_lr1e-4_s42', 'batch_size': 32, 'grad_accum': 1, 'eval_batch_size': 32, 'lr': 0.0001, 'awl_lr': 0.01, 'warmup_ratio': 0.06, 'num_epochs': 20, 'patience': 10, 'validation_fraction': 0.15, 'max_length': 128, 'd_awl_strategy': 'output', 't_awl_version': 'alf2', 'freeze_t_awl': False, 'conf_source': 'convergence', 'drop_nonconverged': False, 'keep_unk_labels': False, 'polarity_only': False, 'bf16': True, 'seed': 42, 'num_workers': 0, 'max_instances': None}
+2026-10-01 18:37:39,554 - INFO - ---- auxiliary data diagnostics (1030 rows) ----
+2026-10-01 18:37:39,554 - INFO - converged: 840 (81.6%) | mean iterations: 2.22
+2026-10-01 18:37:39,554 - INFO - aspect == target: 1 (0.1%)
+2026-10-01 18:37:39,554 - INFO - aspect-conf values (top): [(0.9, 405), (0.8, 361), (0.95, 246), (0.85, 11), (0.5, 7)]
+2026-10-01 18:37:39,554 - INFO - opinion-conf values (top): [(0.8, 775), (0.9, 174), (0.7, 34), (0.85, 30), (0.95, 14), (0.75, 1)]
+2026-10-01 18:37:39,554 - INFO - most common opinions: [('neutral', 62), ('recommended', 13), ('informative', 10), ('indifferent', 9), ('high quality', 9), ('poor quality', 7), ('delicious', 7), ('highly recommended', 5)]
+2026-10-01 18:37:39,554 - INFO - ------------------------------------------------
+2026-10-01 18:37:39,554 - INFO - Train instances: 1030 | implicit+valid: 1030 | with aux: 1030
+2026-10-01 18:37:39,555 - INFO - train: 876 instances | {'neutral': 358, 'negative': 218, 'positive': 300} | majority-class acc 0.409
+2026-10-01 18:37:39,555 - INFO - val: 154 instances | {'negative': 38, 'positive': 53, 'neutral': 63} | majority-class acc 0.409
+2026-10-01 18:37:40,286 - INFO - Dropped train rows whose aux labels contain <unk> (non-English text): 876 -> 871
+2026-10-01 18:37:40,287 - INFO - [aspect] input : Given the sentence "I don't know about you guys, but when I go somewhere to eat I go for the food not for the atmosphere.", what is the mentioned aspect towards atmosphere?
+2026-10-01 18:37:40,288 - INFO - [aspect] target: Focus
+2026-10-01 18:37:40,288 - INFO - [opinion] input : Given the sentence "I don't know about you guys, but when I go somewhere to eat I go for the food not for the atmosphere.", the mentioned aspect towards atmosphere is "Focus". What is the underlying opinion towards atmosphere?
+2026-10-01 18:37:40,288 - INFO - [opinion] target: Neutral
+2026-10-01 18:37:40,288 - INFO - [polarity] input : Given the sentence "I don't know about you guys, but when I go somewhere to eat I go for the food not for the atmosphere.", what is the sentiment polarity towards atmosphere? Options: positive, negative, neutral.
+2026-10-01 18:37:40,288 - INFO - [polarity] target: neutral
+2026-10-01 18:37:40,288 - INFO - [example confidences] aspect=0.50 opinion=0.50
+2026-10-01 18:37:42,176 - INFO - Polarity word positive  -> token ids [1465]
+2026-10-01 18:37:42,176 - INFO - Polarity word negative  -> token ids [2841]
+2026-10-01 18:37:42,176 - INFO - Polarity word neutral   -> token ids [7163]
+2026-10-01 18:37:42,176 - INFO - MT-ISA model: google/flan-t5-base | D-AWL=output | T-AWL=alf2
+2026-10-01 18:37:43,121 - INFO - Zero-shot Flan-T5 on val: loss 0.6762 | F1 0.3761 | Acc 0.4481
+2026-10-01 18:37:43,121 - INFO - ======================================================================
+2026-10-01 18:37:43,121 - INFO - Epoch 1/20
+2026-10-01 18:38:06,300 - INFO - Train loss 9.1158 | F1 0.4712 | Acc 0.4650 | parts {'aspect': 3.4275, 'opinion': 3.1873, 'polarity': 0.6212} | skipped 0
+2026-10-01 18:38:06,300 - INFO - Val   loss 0.4958 | F1 0.5268 | Acc 0.5260
+2026-10-01 18:38:06,300 - INFO - Task weights (normalised): {'aspect': 0.328, 'opinion': 0.327, 'polarity': 0.345} | sigma^2: {'aspect': 1.144, 'opinion': 1.146, 'polarity': 1.085}
+2026-10-01 18:38:08,572 - INFO - New best (val macro-F1 0.5268) saved.
+2026-10-01 18:38:08,572 - INFO - ======================================================================
+2026-10-01 18:38:08,572 - INFO - Epoch 2/20
+2026-10-01 18:38:31,524 - INFO - Train loss 6.5311 | F1 0.5271 | Acc 0.5247 | parts {'aspect': 2.3031, 'opinion': 2.4664, 'polarity': 0.5003} | skipped 0
+2026-10-01 18:38:31,524 - INFO - Val   loss 0.4526 | F1 0.5759 | Acc 0.5714
+2026-10-01 18:38:31,524 - INFO - Task weights (normalised): {'aspect': 0.284, 'opinion': 0.28, 'polarity': 0.435} | sigma^2: {'aspect': 1.501, 'opinion': 1.522, 'polarity': 0.98}
+2026-10-01 18:38:33,971 - INFO - New best (val macro-F1 0.5759) saved.
+2026-10-01 18:38:33,972 - INFO - ======================================================================
+2026-10-01 18:38:33,972 - INFO - Epoch 3/20
+2026-10-01 18:38:57,291 - INFO - Train loss 5.5486 | F1 0.5987 | Acc 0.5959 | parts {'aspect': 1.9704, 'opinion': 2.171, 'polarity': 0.4098} | skipped 0
+2026-10-01 18:38:57,291 - INFO - Val   loss 0.4615 | F1 0.6212 | Acc 0.6169
+2026-10-01 18:38:57,291 - INFO - Task weights (normalised): {'aspect': 0.247, 'opinion': 0.239, 'polarity': 0.514} | sigma^2: {'aspect': 1.79, 'opinion': 1.846, 'polarity': 0.86}
+2026-10-01 18:39:00,633 - INFO - New best (val macro-F1 0.6212) saved.
+2026-10-01 18:39:00,633 - INFO - ======================================================================
+2026-10-01 18:39:00,633 - INFO - Epoch 4/20
+2026-10-01 18:39:25,209 - INFO - Train loss 5.1148 | F1 0.7140 | Acc 0.7107 | parts {'aspect': 1.7933, 'opinion': 1.9724, 'polarity': 0.3376} | skipped 0
+2026-10-01 18:39:25,209 - INFO - Val   loss 0.5176 | F1 0.6086 | Acc 0.6169
+2026-10-01 18:39:25,209 - INFO - Task weights (normalised): {'aspect': 0.222, 'opinion': 0.213, 'polarity': 0.564} | sigma^2: {'aspect': 1.982, 'opinion': 2.067, 'polarity': 0.781}
+2026-10-01 18:39:25,209 - INFO - No improvement: 1/10
+2026-10-01 18:39:25,209 - INFO - ======================================================================
+2026-10-01 18:39:25,209 - INFO - Epoch 5/20
+2026-10-01 18:39:49,045 - INFO - Train loss 4.9066 | F1 0.7358 | Acc 0.7313 | parts {'aspect': 1.6301, 'opinion': 1.8878, 'polarity': 0.3066} | skipped 0
+2026-10-01 18:39:49,045 - INFO - Val   loss 0.5160 | F1 0.6267 | Acc 0.6299
+2026-10-01 18:39:49,045 - INFO - Task weights (normalised): {'aspect': 0.207, 'opinion': 0.196, 'polarity': 0.598} | sigma^2: {'aspect': 2.091, 'opinion': 2.209, 'polarity': 0.723}
+2026-10-01 18:39:52,514 - INFO - New best (val macro-F1 0.6267) saved.
+2026-10-01 18:39:52,514 - INFO - ======================================================================
+2026-10-01 18:39:52,514 - INFO - Epoch 6/20
+2026-10-01 18:40:18,685 - INFO - Train loss 4.7363 | F1 0.7963 | Acc 0.7956 | parts {'aspect': 1.5677, 'opinion': 1.8193, 'polarity': 0.2402} | skipped 0
+2026-10-01 18:40:18,685 - INFO - Val   loss 0.5283 | F1 0.6347 | Acc 0.6364
+2026-10-01 18:40:18,685 - INFO - Task weights (normalised): {'aspect': 0.189, 'opinion': 0.177, 'polarity': 0.635} | sigma^2: {'aspect': 2.138, 'opinion': 2.287, 'polarity': 0.636}
+2026-10-01 18:40:27,260 - INFO - New best (val macro-F1 0.6347) saved.
+2026-10-01 18:40:27,260 - INFO - ======================================================================
+2026-10-01 18:40:27,260 - INFO - Epoch 7/20
+2026-10-01 18:40:47,706 - INFO - Train loss 4.6046 | F1 0.8116 | Acc 0.8106 | parts {'aspect': 1.4337, 'opinion': 1.7269, 'polarity': 0.2255} | skipped 0
+2026-10-01 18:40:47,706 - INFO - Val   loss 0.6310 | F1 0.6124 | Acc 0.6234
+2026-10-01 18:40:47,706 - INFO - Task weights (normalised): {'aspect': 0.179, 'opinion': 0.165, 'polarity': 0.656} | sigma^2: {'aspect': 2.144, 'opinion': 2.331, 'polarity': 0.585}
+2026-10-01 18:40:47,706 - INFO - No improvement: 1/10
+2026-10-01 18:40:47,706 - INFO - ======================================================================
+2026-10-01 18:40:47,706 - INFO - Epoch 8/20
+2026-10-01 18:41:11,921 - INFO - Train loss 4.4394 | F1 0.8688 | Acc 0.8691 | parts {'aspect': 1.3774, 'opinion': 1.6305, 'polarity': 0.1702} | skipped 0
+2026-10-01 18:41:11,921 - INFO - Val   loss 0.7325 | F1 0.6286 | Acc 0.6364
+2026-10-01 18:41:11,921 - INFO - Task weights (normalised): {'aspect': 0.169, 'opinion': 0.154, 'polarity': 0.677} | sigma^2: {'aspect': 2.129, 'opinion': 2.342, 'polarity': 0.531}
+2026-10-01 18:41:11,921 - INFO - No improvement: 2/10
+2026-10-01 18:41:11,921 - INFO - ======================================================================
+2026-10-01 18:41:11,921 - INFO - Epoch 9/20
+2026-10-01 18:41:36,883 - INFO - Train loss 4.3341 | F1 0.8974 | Acc 0.8967 | parts {'aspect': 1.3546, 'opinion': 1.6136, 'polarity': 0.1283} | skipped 0
+2026-10-01 18:41:36,883 - INFO - Val   loss 0.8325 | F1 0.6307 | Acc 0.6429
+2026-10-01 18:41:36,883 - INFO - Task weights (normalised): {'aspect': 0.155, 'opinion': 0.14, 'polarity': 0.705} | sigma^2: {'aspect': 2.11, 'opinion': 2.341, 'polarity': 0.464}
+2026-10-01 18:41:36,883 - INFO - No improvement: 3/10
+2026-10-01 18:41:36,884 - INFO - ======================================================================
+2026-10-01 18:41:36,884 - INFO - Epoch 10/20
+2026-10-01 18:41:59,672 - INFO - Train loss 4.2480 | F1 0.9147 | Acc 0.9150 | parts {'aspect': 1.3092, 'opinion': 1.5729, 'polarity': 0.11} | skipped 0
+2026-10-01 18:41:59,672 - INFO - Val   loss 0.8180 | F1 0.6121 | Acc 0.6234
+2026-10-01 18:41:59,672 - INFO - Task weights (normalised): {'aspect': 0.146, 'opinion': 0.131, 'polarity': 0.724} | sigma^2: {'aspect': 2.088, 'opinion': 2.326, 'polarity': 0.42}
+2026-10-01 18:41:59,672 - INFO - No improvement: 4/10
+2026-10-01 18:41:59,672 - INFO - ======================================================================
+2026-10-01 18:41:59,672 - INFO - Epoch 11/20
+2026-10-01 18:42:24,475 - INFO - Train loss 4.1518 | F1 0.9302 | Acc 0.9300 | parts {'aspect': 1.2537, 'opinion': 1.5299, 'polarity': 0.0912} | skipped 0
+2026-10-01 18:42:24,475 - INFO - Val   loss 1.0155 | F1 0.6286 | Acc 0.6299
+2026-10-01 18:42:24,475 - INFO - Task weights (normalised): {'aspect': 0.139, 'opinion': 0.124, 'polarity': 0.737} | sigma^2: {'aspect': 2.063, 'opinion': 2.311, 'polarity': 0.39}
+2026-10-01 18:42:24,475 - INFO - No improvement: 5/10
+2026-10-01 18:42:24,475 - INFO - ======================================================================
+2026-10-01 18:42:24,475 - INFO - Epoch 12/20
+2026-10-01 18:42:47,104 - INFO - Train loss 4.0752 | F1 0.9497 | Acc 0.9495 | parts {'aspect': 1.2303, 'opinion': 1.4847, 'polarity': 0.0757} | skipped 0
+2026-10-01 18:42:47,104 - INFO - Val   loss 1.0422 | F1 0.6196 | Acc 0.6299
+2026-10-01 18:42:47,104 - INFO - Task weights (normalised): {'aspect': 0.133, 'opinion': 0.118, 'polarity': 0.749} | sigma^2: {'aspect': 2.039, 'opinion': 2.293, 'polarity': 0.361}
+2026-10-01 18:42:47,104 - INFO - No improvement: 6/10
+2026-10-01 18:42:47,104 - INFO - ======================================================================
+2026-10-01 18:42:47,104 - INFO - Epoch 13/20
+2026-10-01 18:43:11,491 - INFO - Train loss 3.9636 | F1 0.9637 | Acc 0.9633 | parts {'aspect': 1.1738, 'opinion': 1.4655, 'polarity': 0.052} | skipped 0
+2026-10-01 18:43:11,491 - INFO - Val   loss 1.1132 | F1 0.6220 | Acc 0.6299
+2026-10-01 18:43:11,491 - INFO - Task weights (normalised): {'aspect': 0.123, 'opinion': 0.109, 'polarity': 0.767} | sigma^2: {'aspect': 2.007, 'opinion': 2.271, 'polarity': 0.323}
+2026-10-01 18:43:11,491 - INFO - No improvement: 7/10
+2026-10-01 18:43:11,491 - INFO - ======================================================================
+2026-10-01 18:43:11,491 - INFO - Epoch 14/20
+2026-10-01 18:43:35,926 - INFO - Train loss 3.9472 | F1 0.9623 | Acc 0.9621 | parts {'aspect': 1.1484, 'opinion': 1.4475, 'polarity': 0.0568} | skipped 0
+2026-10-01 18:43:35,926 - INFO - Val   loss 1.1772 | F1 0.6122 | Acc 0.6234
+2026-10-01 18:43:35,926 - INFO - Task weights (normalised): {'aspect': 0.118, 'opinion': 0.104, 'polarity': 0.779} | sigma^2: {'aspect': 1.984, 'opinion': 2.255, 'polarity': 0.3}
+2026-10-01 18:43:35,926 - INFO - No improvement: 8/10
+2026-10-01 18:43:35,926 - INFO - ======================================================================
+2026-10-01 18:43:35,926 - INFO - Epoch 15/20
+2026-10-01 18:44:00,100 - INFO - Train loss 3.9201 | F1 0.9624 | Acc 0.9621 | parts {'aspect': 1.1704, 'opinion': 1.4319, 'polarity': 0.0484} | skipped 0
+2026-10-01 18:44:00,100 - INFO - Val   loss 1.4066 | F1 0.6331 | Acc 0.6364
+2026-10-01 18:44:00,100 - INFO - Task weights (normalised): {'aspect': 0.115, 'opinion': 0.1, 'polarity': 0.785} | sigma^2: {'aspect': 1.962, 'opinion': 2.239, 'polarity': 0.286}
+2026-10-01 18:44:00,100 - INFO - No improvement: 9/10
+2026-10-01 18:44:00,100 - INFO - ======================================================================
+2026-10-01 18:44:00,100 - INFO - Epoch 16/20
+2026-10-01 18:44:22,895 - INFO - Train loss 3.8715 | F1 0.9640 | Acc 0.9633 | parts {'aspect': 1.1279, 'opinion': 1.4093, 'polarity': 0.0447} | skipped 0
+2026-10-01 18:44:22,895 - INFO - Val   loss 1.3374 | F1 0.6503 | Acc 0.6558
+2026-10-01 18:44:22,895 - INFO - Task weights (normalised): {'aspect': 0.112, 'opinion': 0.098, 'polarity': 0.791} | sigma^2: {'aspect': 1.946, 'opinion': 2.226, 'polarity': 0.275}
+2026-10-01 18:44:27,127 - INFO - New best (val macro-F1 0.6503) saved.
+2026-10-01 18:44:27,127 - INFO - ======================================================================
+2026-10-01 18:44:27,127 - INFO - Epoch 17/20
+2026-10-01 18:44:52,162 - INFO - Train loss 3.8402 | F1 0.9699 | Acc 0.9701 | parts {'aspect': 1.1058, 'opinion': 1.4062, 'polarity': 0.0405} | skipped 0
+2026-10-01 18:44:52,162 - INFO - Val   loss 1.4652 | F1 0.6445 | Acc 0.6494
+2026-10-01 18:44:52,163 - INFO - Task weights (normalised): {'aspect': 0.11, 'opinion': 0.095, 'polarity': 0.795} | sigma^2: {'aspect': 1.93, 'opinion': 2.215, 'polarity': 0.266}
+2026-10-01 18:44:52,163 - INFO - No improvement: 1/10
+2026-10-01 18:44:52,163 - INFO - ======================================================================
+2026-10-01 18:44:52,163 - INFO - Epoch 18/20
+2026-10-01 18:45:14,500 - INFO - Train loss 3.8212 | F1 0.9729 | Acc 0.9724 | parts {'aspect': 1.0868, 'opinion': 1.4263, 'polarity': 0.0364} | skipped 0
+2026-10-01 18:45:14,500 - INFO - Val   loss 1.4851 | F1 0.6359 | Acc 0.6429
+2026-10-01 18:45:14,500 - INFO - Task weights (normalised): {'aspect': 0.108, 'opinion': 0.094, 'polarity': 0.799} | sigma^2: {'aspect': 1.916, 'opinion': 2.207, 'polarity': 0.258}
+2026-10-01 18:45:14,500 - INFO - No improvement: 2/10
+2026-10-01 18:45:14,500 - INFO - ======================================================================
+2026-10-01 18:45:14,500 - INFO - Epoch 19/20
+2026-10-01 18:45:37,497 - INFO - Train loss 3.7751 | F1 0.9771 | Acc 0.9770 | parts {'aspect': 1.0692, 'opinion': 1.37, 'polarity': 0.0341} | skipped 0
+2026-10-01 18:45:37,497 - INFO - Val   loss 1.5165 | F1 0.6272 | Acc 0.6364
+2026-10-01 18:45:37,498 - INFO - Task weights (normalised): {'aspect': 0.106, 'opinion': 0.092, 'polarity': 0.801} | sigma^2: {'aspect': 1.908, 'opinion': 2.2, 'polarity': 0.253}
+2026-10-01 18:45:37,498 - INFO - No improvement: 3/10
+2026-10-01 18:45:37,498 - INFO - ======================================================================
+2026-10-01 18:45:37,498 - INFO - Epoch 20/20
+2026-10-01 18:46:01,543 - INFO - Train loss 3.7776 | F1 0.9739 | Acc 0.9736 | parts {'aspect': 1.0864, 'opinion': 1.3732, 'polarity': 0.0324} | skipped 0
+2026-10-01 18:46:01,543 - INFO - Val   loss 1.5238 | F1 0.6272 | Acc 0.6364
+2026-10-01 18:46:01,543 - INFO - Task weights (normalised): {'aspect': 0.106, 'opinion': 0.092, 'polarity': 0.802} | sigma^2: {'aspect': 1.905, 'opinion': 2.198, 'polarity': 0.252}
+2026-10-01 18:46:01,543 - INFO - No improvement: 4/10
+2026-10-01 18:46:01,545 - INFO - Done. Best val macro-F1 0.6503 at epoch 16
+2026-10-01 18:46:01,817 - INFO - test: 267 instances | {'neutral': 137, 'negative': 54, 'positive': 76} | majority-class acc 0.513
+2026-10-01 18:46:02,136 - INFO - TEST (best ckpt, epoch 16): Acc 0.6404 | macro-F1 0.6384
+2026-10-01 18:46:02,137 - INFO - Confusion matrix (rows=gold, cols=pred; order ['positive', 'negative', 'neutral']):
+[[62  7  7]
+ [10 37  7]
+ [45 20 72]]
+[done] out_conv_lr1e-4_s42 in 507s
+
+=================== [run] tawl_dropnc_lr1e-4_s42   10/01/2026 18:46:03 ===================
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:441: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+2026-10-01 18:46:06,735 - INFO - Device: cuda | args: {'train_data': 'data/processed/restaurant14_train_implicit.json', 'aux_data': 'data/auxiliary/restaurant14_train_implicit_aux_qwen7b_full.json', 'val_data': None, 'test_data': 'data/processed/restaurant14_test_implicit.json', 'model_name': 'google/flan-t5-base', 'output_dir': 'models/exp_tawl_dropnc_lr1e-4_s42', 'batch_size': 32, 'grad_accum': 1, 'eval_batch_size': 32, 'lr': 0.0001, 'awl_lr': 0.01, 'warmup_ratio': 0.06, 'num_epochs': 20, 'patience': 10, 'validation_fraction': 0.15, 'max_length': 128, 'd_awl_strategy': 'none', 't_awl_version': 'alf2', 'freeze_t_awl': False, 'conf_source': 'stored', 'drop_nonconverged': True, 'keep_unk_labels': False, 'polarity_only': False, 'bf16': True, 'seed': 42, 'num_workers': 0, 'max_instances': None}
+2026-10-01 18:46:06,739 - INFO - ---- auxiliary data diagnostics (1030 rows) ----
+2026-10-01 18:46:06,739 - INFO - converged: 840 (81.6%) | mean iterations: 2.22
+2026-10-01 18:46:06,739 - INFO - aspect == target: 1 (0.1%)
+2026-10-01 18:46:06,739 - INFO - aspect-conf values (top): [(0.9, 405), (0.8, 361), (0.95, 246), (0.85, 11), (0.5, 7)]
+2026-10-01 18:46:06,739 - INFO - opinion-conf values (top): [(0.8, 775), (0.9, 174), (0.7, 34), (0.85, 30), (0.95, 14), (0.75, 1)]
+2026-10-01 18:46:06,739 - INFO - most common opinions: [('neutral', 62), ('recommended', 13), ('informative', 10), ('indifferent', 9), ('high quality', 9), ('poor quality', 7), ('delicious', 7), ('highly recommended', 5)]
+2026-10-01 18:46:06,739 - INFO - ------------------------------------------------
+2026-10-01 18:46:06,739 - INFO - Train instances: 1030 | implicit+valid: 1030 | with aux: 1030
+2026-10-01 18:46:06,740 - INFO - Dropped non-converged from train: 876 -> 717
+2026-10-01 18:46:06,740 - INFO - train: 717 instances | {'negative': 214, 'neutral': 210, 'positive': 293} | majority-class acc 0.409
+2026-10-01 18:46:06,740 - INFO - val: 154 instances | {'negative': 38, 'positive': 53, 'neutral': 63} | majority-class acc 0.409
+2026-10-01 18:46:07,336 - INFO - Dropped train rows whose aux labels contain <unk> (non-English text): 717 -> 713
+2026-10-01 18:46:07,337 - INFO - [aspect] input : Given the sentence "would have rather tried terrace in the sky or water club for that price", what is the mentioned aspect towards price?
+2026-10-01 18:46:07,337 - INFO - [aspect] target: Value for money
+2026-10-01 18:46:07,337 - INFO - [opinion] input : Given the sentence "would have rather tried terrace in the sky or water club for that price", the mentioned aspect towards price is "Value for money". What is the underlying opinion towards price?
+2026-10-01 18:46:07,337 - INFO - [opinion] target: Underestimates the value for money
+2026-10-01 18:46:07,337 - INFO - [polarity] input : Given the sentence "would have rather tried terrace in the sky or water club for that price", what is the sentiment polarity towards price? Options: positive, negative, neutral.
+2026-10-01 18:46:07,337 - INFO - [polarity] target: negative
+2026-10-01 18:46:07,337 - INFO - [example confidences] aspect=0.90 opinion=0.80
+2026-10-01 18:46:09,291 - INFO - Polarity word positive  -> token ids [1465]
+2026-10-01 18:46:09,291 - INFO - Polarity word negative  -> token ids [2841]
+2026-10-01 18:46:09,291 - INFO - Polarity word neutral   -> token ids [7163]
+2026-10-01 18:46:09,291 - INFO - MT-ISA model: google/flan-t5-base | D-AWL=none | T-AWL=alf2
+2026-10-01 18:46:10,220 - INFO - Zero-shot Flan-T5 on val: loss 0.6762 | F1 0.3761 | Acc 0.4481
+2026-10-01 18:46:10,221 - INFO - ======================================================================
+2026-10-01 18:46:10,221 - INFO - Epoch 1/20
+2026-10-01 18:46:35,197 - INFO - Train loss 9.9728 | F1 0.5091 | Acc 0.5414 | parts {'aspect': 3.9154, 'opinion': 3.612, 'polarity': 0.5558} | skipped 0
+2026-10-01 18:46:35,197 - INFO - Val   loss 0.5171 | F1 0.5061 | Acc 0.5065
+2026-10-01 18:46:35,197 - INFO - Task weights (normalised): {'aspect': 0.325, 'opinion': 0.324, 'polarity': 0.351} | sigma^2: {'aspect': 1.115, 'opinion': 1.116, 'polarity': 1.031}
+2026-10-01 18:46:39,683 - INFO - New best (val macro-F1 0.5061) saved.
+2026-10-01 18:46:39,683 - INFO - ======================================================================
+2026-10-01 18:46:39,683 - INFO - Epoch 2/20
+2026-10-01 18:47:07,825 - INFO - Train loss 7.1885 | F1 0.5637 | Acc 0.5820 | parts {'aspect': 2.6372, 'opinion': 2.8351, 'polarity': 0.4678} | skipped 0
+2026-10-01 18:47:07,825 - INFO - Val   loss 0.5652 | F1 0.4603 | Acc 0.4935
+2026-10-01 18:47:07,825 - INFO - Task weights (normalised): {'aspect': 0.291, 'opinion': 0.288, 'polarity': 0.421} | sigma^2: {'aspect': 1.397, 'opinion': 1.414, 'polarity': 0.967}
+2026-10-01 18:47:07,825 - INFO - No improvement: 1/10
+2026-10-01 18:47:07,825 - INFO - ======================================================================
+2026-10-01 18:47:07,825 - INFO - Epoch 3/20
+2026-10-01 18:47:34,540 - INFO - Train loss 6.0725 | F1 0.6187 | Acc 0.6452 | parts {'aspect': 2.2408, 'opinion': 2.4884, 'polarity': 0.431} | skipped 0
+2026-10-01 18:47:34,540 - INFO - Val   loss 0.4562 | F1 0.5687 | Acc 0.5649
+2026-10-01 18:47:34,540 - INFO - Task weights (normalised): {'aspect': 0.259, 'opinion': 0.253, 'polarity': 0.488} | sigma^2: {'aspect': 1.653, 'opinion': 1.694, 'polarity': 0.879}
+2026-10-01 18:47:41,241 - INFO - New best (val macro-F1 0.5687) saved.
+2026-10-01 18:47:41,241 - INFO - ======================================================================
+2026-10-01 18:47:41,241 - INFO - Epoch 4/20
+2026-10-01 18:48:09,904 - INFO - Train loss 5.4615 | F1 0.6752 | Acc 0.6872 | parts {'aspect': 1.9832, 'opinion': 2.2607, 'polarity': 0.3539} | skipped 0
+2026-10-01 18:48:09,904 - INFO - Val   loss 0.5864 | F1 0.5779 | Acc 0.5974
+2026-10-01 18:48:09,904 - INFO - Task weights (normalised): {'aspect': 0.235, 'opinion': 0.225, 'polarity': 0.54} | sigma^2: {'aspect': 1.852, 'opinion': 1.932, 'polarity': 0.807}
+2026-10-01 18:48:23,869 - INFO - New best (val macro-F1 0.5779) saved.
+2026-10-01 18:48:23,869 - INFO - ======================================================================
+2026-10-01 18:48:23,869 - INFO - Epoch 5/20
+2026-10-01 18:48:52,513 - INFO - Train loss 5.1221 | F1 0.7516 | Acc 0.7630 | parts {'aspect': 1.8579, 'opinion': 2.0854, 'polarity': 0.2883} | skipped 0
+2026-10-01 18:48:52,513 - INFO - Val   loss 0.5799 | F1 0.6274 | Acc 0.6364
+2026-10-01 18:48:52,513 - INFO - Task weights (normalised): {'aspect': 0.209, 'opinion': 0.198, 'polarity': 0.593} | sigma^2: {'aspect': 1.992, 'opinion': 2.101, 'polarity': 0.701}
+2026-10-01 18:49:07,459 - INFO - New best (val macro-F1 0.6274) saved.
+2026-10-01 18:49:07,459 - INFO - ======================================================================
+2026-10-01 18:49:07,459 - INFO - Epoch 6/20
+2026-10-01 18:49:34,004 - INFO - Train loss 4.9144 | F1 0.8057 | Acc 0.8163 | parts {'aspect': 1.7389, 'opinion': 2.0099, 'polarity': 0.2375} | skipped 0
+2026-10-01 18:49:34,005 - INFO - Val   loss 0.6844 | F1 0.5989 | Acc 0.6104
+2026-10-01 18:49:34,005 - INFO - Task weights (normalised): {'aspect': 0.191, 'opinion': 0.18, 'polarity': 0.629} | sigma^2: {'aspect': 2.072, 'opinion': 2.204, 'polarity': 0.63}
+2026-10-01 18:49:34,005 - INFO - No improvement: 1/10
+2026-10-01 18:49:34,005 - INFO - ======================================================================
+2026-10-01 18:49:34,005 - INFO - Epoch 7/20
+2026-10-01 18:50:01,075 - INFO - Train loss 4.7426 | F1 0.8384 | Acc 0.8471 | parts {'aspect': 1.6404, 'opinion': 1.9309, 'polarity': 0.1933} | skipped 0
+2026-10-01 18:50:01,075 - INFO - Val   loss 0.6542 | F1 0.6063 | Acc 0.6169
+2026-10-01 18:50:01,075 - INFO - Task weights (normalised): {'aspect': 0.178, 'opinion': 0.166, 'polarity': 0.657} | sigma^2: {'aspect': 2.123, 'opinion': 2.276, 'polarity': 0.575}
+2026-10-01 18:50:01,075 - INFO - No improvement: 2/10
+2026-10-01 18:50:01,075 - INFO - ======================================================================
+2026-10-01 18:50:01,075 - INFO - Epoch 8/20
+2026-10-01 18:50:29,142 - INFO - Train loss 4.6267 | F1 0.8643 | Acc 0.8710 | parts {'aspect': 1.5945, 'opinion': 1.8635, 'polarity': 0.1622} | skipped 0
+2026-10-01 18:50:29,142 - INFO - Val   loss 0.7169 | F1 0.6038 | Acc 0.6104
+2026-10-01 18:50:29,142 - INFO - Task weights (normalised): {'aspect': 0.163, 'opinion': 0.151, 'polarity': 0.686} | sigma^2: {'aspect': 2.152, 'opinion': 2.328, 'polarity': 0.512}
+2026-10-01 18:50:29,142 - INFO - No improvement: 3/10
+2026-10-01 18:50:29,142 - INFO - ======================================================================
+2026-10-01 18:50:29,142 - INFO - Epoch 9/20
+2026-10-01 18:50:57,307 - INFO - Train loss 4.4849 | F1 0.9108 | Acc 0.9158 | parts {'aspect': 1.5004, 'opinion': 1.8211, 'polarity': 0.1254} | skipped 0
+2026-10-01 18:50:57,307 - INFO - Val   loss 0.8829 | F1 0.6130 | Acc 0.6234
+2026-10-01 18:50:57,307 - INFO - Task weights (normalised): {'aspect': 0.152, 'opinion': 0.138, 'polarity': 0.71} | sigma^2: {'aspect': 2.158, 'opinion': 2.363, 'polarity': 0.461}
+2026-10-01 18:50:57,307 - INFO - No improvement: 4/10
+2026-10-01 18:50:57,307 - INFO - ======================================================================
+2026-10-01 18:50:57,307 - INFO - Epoch 10/20
+2026-10-01 18:51:25,180 - INFO - Train loss 4.3957 | F1 0.9245 | Acc 0.9271 | parts {'aspect': 1.4645, 'opinion': 1.7605, 'polarity': 0.1067} | skipped 0
+2026-10-01 18:51:25,180 - INFO - Val   loss 1.0122 | F1 0.6162 | Acc 0.6299
+2026-10-01 18:51:25,180 - INFO - Task weights (normalised): {'aspect': 0.14, 'opinion': 0.128, 'polarity': 0.732} | sigma^2: {'aspect': 2.162, 'opinion': 2.375, 'polarity': 0.414}
+2026-10-01 18:51:25,180 - INFO - No improvement: 5/10
+2026-10-01 18:51:25,180 - INFO - ======================================================================
+2026-10-01 18:51:25,180 - INFO - Epoch 11/20
+2026-10-01 18:51:52,015 - INFO - Train loss 4.2585 | F1 0.9469 | Acc 0.9481 | parts {'aspect': 1.3851, 'opinion': 1.7165, 'polarity': 0.0765} | skipped 0
+2026-10-01 18:51:52,015 - INFO - Val   loss 1.0340 | F1 0.6103 | Acc 0.6234
+2026-10-01 18:51:52,015 - INFO - Task weights (normalised): {'aspect': 0.133, 'opinion': 0.12, 'polarity': 0.747} | sigma^2: {'aspect': 2.155, 'opinion': 2.382, 'polarity': 0.384}
+2026-10-01 18:51:52,015 - INFO - No improvement: 6/10
+2026-10-01 18:51:52,015 - INFO - ======================================================================
+2026-10-01 18:51:52,015 - INFO - Epoch 12/20
+2026-10-01 18:52:19,648 - INFO - Train loss 4.2609 | F1 0.9390 | Acc 0.9411 | parts {'aspect': 1.3957, 'opinion': 1.6481, 'polarity': 0.0882} | skipped 0
+2026-10-01 18:52:19,648 - INFO - Val   loss 1.1023 | F1 0.6004 | Acc 0.6104
+2026-10-01 18:52:19,648 - INFO - Task weights (normalised): {'aspect': 0.126, 'opinion': 0.114, 'polarity': 0.76} | sigma^2: {'aspect': 2.145, 'opinion': 2.384, 'polarity': 0.356}
+2026-10-01 18:52:19,648 - INFO - No improvement: 7/10
+2026-10-01 18:52:19,648 - INFO - ======================================================================
+2026-10-01 18:52:19,648 - INFO - Epoch 13/20
+2026-10-01 18:52:48,207 - INFO - Train loss 4.1714 | F1 0.9477 | Acc 0.9509 | parts {'aspect': 1.3316, 'opinion': 1.6639, 'polarity': 0.0658} | skipped 0
+2026-10-01 18:52:48,207 - INFO - Val   loss 1.0852 | F1 0.6016 | Acc 0.6104
+2026-10-01 18:52:48,207 - INFO - Task weights (normalised): {'aspect': 0.122, 'opinion': 0.11, 'polarity': 0.768} | sigma^2: {'aspect': 2.133, 'opinion': 2.38, 'polarity': 0.34}
+2026-10-01 18:52:48,207 - INFO - No improvement: 8/10
+2026-10-01 18:52:48,207 - INFO - ======================================================================
+2026-10-01 18:52:48,207 - INFO - Epoch 14/20
+2026-10-01 18:53:16,940 - INFO - Train loss 4.1889 | F1 0.9526 | Acc 0.9551 | parts {'aspect': 1.3039, 'opinion': 1.6473, 'polarity': 0.0791} | skipped 0
+2026-10-01 18:53:16,940 - INFO - Val   loss 1.0844 | F1 0.6274 | Acc 0.6364
+2026-10-01 18:53:16,940 - INFO - Task weights (normalised): {'aspect': 0.119, 'opinion': 0.106, 'polarity': 0.775} | sigma^2: {'aspect': 2.121, 'opinion': 2.376, 'polarity': 0.326}
+2026-10-01 18:53:19,438 - INFO - New best (val macro-F1 0.6274) saved.
+2026-10-01 18:53:19,438 - INFO - ======================================================================
+2026-10-01 18:53:19,438 - INFO - Epoch 15/20
+2026-10-01 18:53:46,543 - INFO - Train loss 4.0640 | F1 0.9568 | Acc 0.9579 | parts {'aspect': 1.2627, 'opinion': 1.579, 'polarity': 0.055} | skipped 0
+2026-10-01 18:53:46,543 - INFO - Val   loss 1.2239 | F1 0.6266 | Acc 0.6364
+2026-10-01 18:53:46,543 - INFO - Task weights (normalised): {'aspect': 0.116, 'opinion': 0.103, 'polarity': 0.781} | sigma^2: {'aspect': 2.105, 'opinion': 2.371, 'polarity': 0.314}
+2026-10-01 18:53:46,543 - INFO - No improvement: 1/10
+2026-10-01 18:53:46,543 - INFO - ======================================================================
+2026-10-01 18:53:46,543 - INFO - Epoch 16/20
+2026-10-01 18:54:13,832 - INFO - Train loss 4.0215 | F1 0.9654 | Acc 0.9677 | parts {'aspect': 1.2681, 'opinion': 1.5943, 'polarity': 0.0403} | skipped 0
+2026-10-01 18:54:13,832 - INFO - Val   loss 1.1988 | F1 0.6496 | Acc 0.6558
+2026-10-01 18:54:13,832 - INFO - Task weights (normalised): {'aspect': 0.113, 'opinion': 0.1, 'polarity': 0.787} | sigma^2: {'aspect': 2.09, 'opinion': 2.364, 'polarity': 0.301}
+2026-10-01 18:54:19,719 - INFO - New best (val macro-F1 0.6496) saved.
+2026-10-01 18:54:19,719 - INFO - ======================================================================
+2026-10-01 18:54:19,719 - INFO - Epoch 17/20
+2026-10-01 18:54:49,006 - INFO - Train loss 3.9471 | F1 0.9807 | Acc 0.9818 | parts {'aspect': 1.2519, 'opinion': 1.5508, 'polarity': 0.0274} | skipped 0
+2026-10-01 18:54:49,006 - INFO - Val   loss 1.3650 | F1 0.6266 | Acc 0.6364
+2026-10-01 18:54:49,006 - INFO - Task weights (normalised): {'aspect': 0.109, 'opinion': 0.097, 'polarity': 0.794} | sigma^2: {'aspect': 2.08, 'opinion': 2.357, 'polarity': 0.286}
+2026-10-01 18:54:49,006 - INFO - No improvement: 1/10
+2026-10-01 18:54:49,006 - INFO - ======================================================================
+2026-10-01 18:54:49,006 - INFO - Epoch 18/20
+2026-10-01 18:55:17,237 - INFO - Train loss 3.9579 | F1 0.9761 | Acc 0.9776 | parts {'aspect': 1.198, 'opinion': 1.5718, 'polarity': 0.0369} | skipped 0
+2026-10-01 18:55:17,237 - INFO - Val   loss 1.4160 | F1 0.6258 | Acc 0.6364
+2026-10-01 18:55:17,237 - INFO - Task weights (normalised): {'aspect': 0.107, 'opinion': 0.094, 'polarity': 0.799} | sigma^2: {'aspect': 2.07, 'opinion': 2.351, 'polarity': 0.278}
+2026-10-01 18:55:17,237 - INFO - No improvement: 2/10
+2026-10-01 18:55:17,237 - INFO - ======================================================================
+2026-10-01 18:55:17,237 - INFO - Epoch 19/20
+2026-10-01 18:55:44,906 - INFO - Train loss 3.8913 | F1 0.9870 | Acc 0.9874 | parts {'aspect': 1.2021, 'opinion': 1.5285, 'polarity': 0.0239} | skipped 0
+2026-10-01 18:55:44,906 - INFO - Val   loss 1.4449 | F1 0.6323 | Acc 0.6429
+2026-10-01 18:55:44,906 - INFO - Task weights (normalised): {'aspect': 0.106, 'opinion': 0.093, 'polarity': 0.801} | sigma^2: {'aspect': 2.063, 'opinion': 2.346, 'polarity': 0.272}
+2026-10-01 18:55:44,906 - INFO - No improvement: 3/10
+2026-10-01 18:55:44,906 - INFO - ======================================================================
+2026-10-01 18:55:44,906 - INFO - Epoch 20/20
+2026-10-01 18:56:12,250 - INFO - Train loss 3.9387 | F1 0.9792 | Acc 0.9804 | parts {'aspect': 1.203, 'opinion': 1.5209, 'polarity': 0.038} | skipped 0
+2026-10-01 18:56:12,250 - INFO - Val   loss 1.4294 | F1 0.6323 | Acc 0.6429
+2026-10-01 18:56:12,250 - INFO - Task weights (normalised): {'aspect': 0.105, 'opinion': 0.092, 'polarity': 0.802} | sigma^2: {'aspect': 2.061, 'opinion': 2.345, 'polarity': 0.27}
+2026-10-01 18:56:12,250 - INFO - No improvement: 4/10
+2026-10-01 18:56:12,251 - INFO - Done. Best val macro-F1 0.6496 at epoch 16
+2026-10-01 18:56:12,534 - INFO - test: 267 instances | {'neutral': 137, 'negative': 54, 'positive': 76} | majority-class acc 0.513
+2026-10-01 18:56:12,945 - INFO - TEST (best ckpt, epoch 16): Acc 0.6330 | macro-F1 0.6342
+2026-10-01 18:56:12,945 - INFO - Confusion matrix (rows=gold, cols=pred; order ['positive', 'negative', 'neutral']):
+[[67  6  3]
+ [ 8 39  7]
+ [51 23 63]]
+[done] tawl_dropnc_lr1e-4_s42 in 611s
+
+>>> Stage 1 best D-AWL variant by validation: in_conv
+
+=================== [run] polonly_lr1e-4_s1   10/01/2026 18:56:13 ===================
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:441: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+2026-10-01 18:56:17,426 - INFO - Device: cuda | args: {'train_data': 'data/processed/restaurant14_train_implicit.json', 'aux_data': 'data/auxiliary/restaurant14_train_implicit_aux_qwen7b_full.json', 'val_data': None, 'test_data': 'data/processed/restaurant14_test_implicit.json', 'model_name': 'google/flan-t5-base', 'output_dir': 'models/exp_polonly_lr1e-4_s1', 'batch_size': 32, 'grad_accum': 1, 'eval_batch_size': 32, 'lr': 0.0001, 'awl_lr': 0.01, 'warmup_ratio': 0.06, 'num_epochs': 20, 'patience': 10, 'validation_fraction': 0.15, 'max_length': 128, 'd_awl_strategy': 'input', 't_awl_version': 'alf2', 'freeze_t_awl': False, 'conf_source': 'stored', 'drop_nonconverged': False, 'keep_unk_labels': False, 'polarity_only': True, 'bf16': True, 'seed': 1, 'num_workers': 0, 'max_instances': None}
+2026-10-01 18:56:17,430 - INFO - ---- auxiliary data diagnostics (1030 rows) ----
+2026-10-01 18:56:17,431 - INFO - converged: 840 (81.6%) | mean iterations: 2.22
+2026-10-01 18:56:17,431 - INFO - aspect == target: 1 (0.1%)
+2026-10-01 18:56:17,431 - INFO - aspect-conf values (top): [(0.9, 405), (0.8, 361), (0.95, 246), (0.85, 11), (0.5, 7)]
+2026-10-01 18:56:17,431 - INFO - opinion-conf values (top): [(0.8, 775), (0.9, 174), (0.7, 34), (0.85, 30), (0.95, 14), (0.75, 1)]
+2026-10-01 18:56:17,431 - INFO - most common opinions: [('neutral', 62), ('recommended', 13), ('informative', 10), ('indifferent', 9), ('high quality', 9), ('poor quality', 7), ('delicious', 7), ('highly recommended', 5)]
+2026-10-01 18:56:17,431 - INFO - ------------------------------------------------
+2026-10-01 18:56:17,431 - INFO - Train instances: 1030 | implicit+valid: 1030 | with aux: 1030
+2026-10-01 18:56:17,432 - INFO - train: 876 instances | {'negative': 218, 'neutral': 358, 'positive': 300} | majority-class acc 0.409
+2026-10-01 18:56:17,432 - INFO - val: 154 instances | {'neutral': 63, 'negative': 38, 'positive': 53} | majority-class acc 0.409
+2026-10-01 18:56:18,241 - INFO - Dropped train rows whose aux labels contain <unk> (non-English text): 876 -> 872
+2026-10-01 18:56:18,242 - INFO - [polarity] input : Given the sentence "20 minutes for our reservation but it gave us time to have a few cocktails and enjoy our surroundings and each other.", what is the sentiment polarity towards reservation? Options: positive, negative, neutral.
+2026-10-01 18:56:18,242 - INFO - [polarity] target: negative
+2026-10-01 18:56:20,580 - INFO - Polarity word positive  -> token ids [1465]
+2026-10-01 18:56:20,580 - INFO - Polarity word negative  -> token ids [2841]
+2026-10-01 18:56:20,580 - INFO - Polarity word neutral   -> token ids [7163]
+2026-10-01 18:56:20,580 - INFO - MT-ISA model: google/flan-t5-base | D-AWL=input | T-AWL=alf2
+2026-10-01 18:56:21,515 - INFO - Zero-shot Flan-T5 on val: loss 0.7306 | F1 0.3872 | Acc 0.4545
+2026-10-01 18:56:21,515 - INFO - ======================================================================
+2026-10-01 18:56:21,515 - INFO - Epoch 1/20
+2026-10-01 18:56:26,402 - INFO - Train loss 0.6077 | F1 0.4683 | Acc 0.4622 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.6077} | skipped 0
+2026-10-01 18:56:26,402 - INFO - Val   loss 0.4799 | F1 0.5513 | Acc 0.5584
+2026-10-01 18:56:26,402 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 18:56:32,926 - INFO - New best (val macro-F1 0.5513) saved.
+2026-10-01 18:56:32,926 - INFO - ======================================================================
+2026-10-01 18:56:32,926 - INFO - Epoch 2/20
+2026-10-01 18:56:36,961 - INFO - Train loss 0.4473 | F1 0.5792 | Acc 0.5745 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.4473} | skipped 0
+2026-10-01 18:56:36,961 - INFO - Val   loss 0.3923 | F1 0.6739 | Acc 0.6753
+2026-10-01 18:56:36,961 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 18:56:54,140 - INFO - New best (val macro-F1 0.6739) saved.
+2026-10-01 18:56:54,140 - INFO - ======================================================================
+2026-10-01 18:56:54,140 - INFO - Epoch 3/20
+2026-10-01 18:56:58,955 - INFO - Train loss 0.3656 | F1 0.6702 | Acc 0.6709 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.3656} | skipped 0
+2026-10-01 18:56:58,955 - INFO - Val   loss 0.4368 | F1 0.6464 | Acc 0.6558
+2026-10-01 18:56:58,955 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 18:56:58,955 - INFO - No improvement: 1/10
+2026-10-01 18:56:58,955 - INFO - ======================================================================
+2026-10-01 18:56:58,955 - INFO - Epoch 4/20
+2026-10-01 18:57:03,688 - INFO - Train loss 0.3196 | F1 0.7243 | Acc 0.7225 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.3196} | skipped 0
+2026-10-01 18:57:03,688 - INFO - Val   loss 0.3739 | F1 0.7006 | Acc 0.7013
+2026-10-01 18:57:03,688 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 18:57:07,923 - INFO - New best (val macro-F1 0.7006) saved.
+2026-10-01 18:57:07,923 - INFO - ======================================================================
+2026-10-01 18:57:07,923 - INFO - Epoch 5/20
+2026-10-01 18:57:12,350 - INFO - Train loss 0.2686 | F1 0.7843 | Acc 0.7833 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.2686} | skipped 0
+2026-10-01 18:57:12,350 - INFO - Val   loss 0.4101 | F1 0.7067 | Acc 0.7078
+2026-10-01 18:57:12,350 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 18:57:16,422 - INFO - New best (val macro-F1 0.7067) saved.
+2026-10-01 18:57:16,422 - INFO - ======================================================================
+2026-10-01 18:57:16,422 - INFO - Epoch 6/20
+2026-10-01 18:57:21,134 - INFO - Train loss 0.1970 | F1 0.8429 | Acc 0.8440 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.197} | skipped 0
+2026-10-01 18:57:21,134 - INFO - Val   loss 0.4908 | F1 0.7032 | Acc 0.7078
+2026-10-01 18:57:21,134 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 18:57:21,134 - INFO - No improvement: 1/10
+2026-10-01 18:57:21,134 - INFO - ======================================================================
+2026-10-01 18:57:21,134 - INFO - Epoch 7/20
+2026-10-01 18:57:25,489 - INFO - Train loss 0.1582 | F1 0.8782 | Acc 0.8796 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.1582} | skipped 0
+2026-10-01 18:57:25,489 - INFO - Val   loss 0.6247 | F1 0.7090 | Acc 0.7143
+2026-10-01 18:57:25,489 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 18:57:33,466 - INFO - New best (val macro-F1 0.7090) saved.
+2026-10-01 18:57:33,466 - INFO - ======================================================================
+2026-10-01 18:57:33,467 - INFO - Epoch 8/20
+2026-10-01 18:57:37,592 - INFO - Train loss 0.1270 | F1 0.9044 | Acc 0.9037 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.127} | skipped 0
+2026-10-01 18:57:37,592 - INFO - Val   loss 0.4969 | F1 0.7267 | Acc 0.7338
+2026-10-01 18:57:37,592 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 18:57:53,200 - INFO - New best (val macro-F1 0.7267) saved.
+2026-10-01 18:57:53,201 - INFO - ======================================================================
+2026-10-01 18:57:53,201 - INFO - Epoch 9/20
+2026-10-01 18:57:57,779 - INFO - Train loss 0.1247 | F1 0.9016 | Acc 0.9014 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.1247} | skipped 0
+2026-10-01 18:57:57,779 - INFO - Val   loss 0.5271 | F1 0.7489 | Acc 0.7532
+2026-10-01 18:57:57,779 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 18:58:01,462 - INFO - New best (val macro-F1 0.7489) saved.
+2026-10-01 18:58:01,462 - INFO - ======================================================================
+2026-10-01 18:58:01,462 - INFO - Epoch 10/20
+2026-10-01 18:58:05,948 - INFO - Train loss 0.0869 | F1 0.9406 | Acc 0.9415 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.0869} | skipped 0
+2026-10-01 18:58:05,948 - INFO - Val   loss 0.6258 | F1 0.7431 | Acc 0.7468
+2026-10-01 18:58:05,948 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 18:58:05,948 - INFO - No improvement: 1/10
+2026-10-01 18:58:05,948 - INFO - ======================================================================
+2026-10-01 18:58:05,948 - INFO - Epoch 11/20
+2026-10-01 18:58:10,572 - INFO - Train loss 0.0657 | F1 0.9538 | Acc 0.9541 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.0657} | skipped 0
+2026-10-01 18:58:10,572 - INFO - Val   loss 0.7534 | F1 0.7238 | Acc 0.7273
+2026-10-01 18:58:10,572 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 18:58:10,572 - INFO - No improvement: 2/10
+2026-10-01 18:58:10,572 - INFO - ======================================================================
+2026-10-01 18:58:10,572 - INFO - Epoch 12/20
+2026-10-01 18:58:15,066 - INFO - Train loss 0.0696 | F1 0.9542 | Acc 0.9541 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.0696} | skipped 0
+2026-10-01 18:58:15,066 - INFO - Val   loss 0.7872 | F1 0.7051 | Acc 0.7078
+2026-10-01 18:58:15,066 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 18:58:15,066 - INFO - No improvement: 3/10
+2026-10-01 18:58:15,066 - INFO - ======================================================================
+2026-10-01 18:58:15,066 - INFO - Epoch 13/20
+2026-10-01 18:58:19,584 - INFO - Train loss 0.0698 | F1 0.9497 | Acc 0.9507 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.0698} | skipped 0
+2026-10-01 18:58:19,584 - INFO - Val   loss 0.7671 | F1 0.7406 | Acc 0.7468
+2026-10-01 18:58:19,584 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 18:58:19,584 - INFO - No improvement: 4/10
+2026-10-01 18:58:19,584 - INFO - ======================================================================
+2026-10-01 18:58:19,584 - INFO - Epoch 14/20
+2026-10-01 18:58:24,045 - INFO - Train loss 0.0521 | F1 0.9691 | Acc 0.9679 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.0521} | skipped 0
+2026-10-01 18:58:24,046 - INFO - Val   loss 0.8006 | F1 0.7482 | Acc 0.7532
+2026-10-01 18:58:24,046 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 18:58:24,046 - INFO - No improvement: 5/10
+2026-10-01 18:58:24,046 - INFO - ======================================================================
+2026-10-01 18:58:24,046 - INFO - Epoch 15/20
+2026-10-01 18:58:28,004 - INFO - Train loss 0.0510 | F1 0.9645 | Acc 0.9656 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.051} | skipped 0
+2026-10-01 18:58:28,004 - INFO - Val   loss 0.8248 | F1 0.7475 | Acc 0.7532
+2026-10-01 18:58:28,004 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 18:58:28,004 - INFO - No improvement: 6/10
+2026-10-01 18:58:28,004 - INFO - ======================================================================
+2026-10-01 18:58:28,004 - INFO - Epoch 16/20
+2026-10-01 18:58:31,979 - INFO - Train loss 0.0353 | F1 0.9767 | Acc 0.9771 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.0353} | skipped 0
+2026-10-01 18:58:31,979 - INFO - Val   loss 0.8184 | F1 0.7600 | Acc 0.7662
+2026-10-01 18:58:31,979 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 18:58:37,103 - INFO - New best (val macro-F1 0.7600) saved.
+2026-10-01 18:58:37,103 - INFO - ======================================================================
+2026-10-01 18:58:37,103 - INFO - Epoch 17/20
+2026-10-01 18:58:41,036 - INFO - Train loss 0.0329 | F1 0.9746 | Acc 0.9748 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.0329} | skipped 0
+2026-10-01 18:58:41,036 - INFO - Val   loss 0.8376 | F1 0.7410 | Acc 0.7468
+2026-10-01 18:58:41,036 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 18:58:41,036 - INFO - No improvement: 1/10
+2026-10-01 18:58:41,036 - INFO - ======================================================================
+2026-10-01 18:58:41,036 - INFO - Epoch 18/20
+2026-10-01 18:58:44,969 - INFO - Train loss 0.0278 | F1 0.9757 | Acc 0.9771 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.0278} | skipped 0
+2026-10-01 18:58:44,969 - INFO - Val   loss 0.9134 | F1 0.7354 | Acc 0.7403
+2026-10-01 18:58:44,969 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 18:58:44,969 - INFO - No improvement: 2/10
+2026-10-01 18:58:44,970 - INFO - ======================================================================
+2026-10-01 18:58:44,970 - INFO - Epoch 19/20
+2026-10-01 18:58:48,946 - INFO - Train loss 0.0244 | F1 0.9886 | Acc 0.9885 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.0244} | skipped 0
+2026-10-01 18:58:48,946 - INFO - Val   loss 0.9412 | F1 0.7481 | Acc 0.7532
+2026-10-01 18:58:48,946 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 18:58:48,946 - INFO - No improvement: 3/10
+2026-10-01 18:58:48,946 - INFO - ======================================================================
+2026-10-01 18:58:48,946 - INFO - Epoch 20/20
+2026-10-01 18:58:52,878 - INFO - Train loss 0.0293 | F1 0.9813 | Acc 0.9817 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.0293} | skipped 0
+2026-10-01 18:58:52,878 - INFO - Val   loss 0.9415 | F1 0.7411 | Acc 0.7468
+2026-10-01 18:58:52,878 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 18:58:52,878 - INFO - No improvement: 4/10
+2026-10-01 18:58:52,879 - INFO - Done. Best val macro-F1 0.7600 at epoch 16
+2026-10-01 18:58:53,586 - INFO - test: 267 instances | {'neutral': 137, 'negative': 54, 'positive': 76} | majority-class acc 0.513
+2026-10-01 18:58:53,975 - INFO - TEST (best ckpt, epoch 16): Acc 0.6404 | macro-F1 0.6367
+2026-10-01 18:58:53,976 - INFO - Confusion matrix (rows=gold, cols=pred; order ['positive', 'negative', 'neutral']):
+[[66  6  4]
+ [11 35  8]
+ [48 19 70]]
+[done] polonly_lr1e-4_s1 in 161s
+
+=================== [run] mtl_tawl_lr1e-4_s1   10/01/2026 18:58:54 ===================
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:441: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+2026-10-01 18:58:58,514 - INFO - Device: cuda | args: {'train_data': 'data/processed/restaurant14_train_implicit.json', 'aux_data': 'data/auxiliary/restaurant14_train_implicit_aux_qwen7b_full.json', 'val_data': None, 'test_data': 'data/processed/restaurant14_test_implicit.json', 'model_name': 'google/flan-t5-base', 'output_dir': 'models/exp_mtl_tawl_lr1e-4_s1', 'batch_size': 32, 'grad_accum': 1, 'eval_batch_size': 32, 'lr': 0.0001, 'awl_lr': 0.01, 'warmup_ratio': 0.06, 'num_epochs': 20, 'patience': 10, 'validation_fraction': 0.15, 'max_length': 128, 'd_awl_strategy': 'none', 't_awl_version': 'alf2', 'freeze_t_awl': False, 'conf_source': 'stored', 'drop_nonconverged': False, 'keep_unk_labels': False, 'polarity_only': False, 'bf16': True, 'seed': 1, 'num_workers': 0, 'max_instances': None}
+2026-10-01 18:58:58,519 - INFO - ---- auxiliary data diagnostics (1030 rows) ----
+2026-10-01 18:58:58,519 - INFO - converged: 840 (81.6%) | mean iterations: 2.22
+2026-10-01 18:58:58,519 - INFO - aspect == target: 1 (0.1%)
+2026-10-01 18:58:58,519 - INFO - aspect-conf values (top): [(0.9, 405), (0.8, 361), (0.95, 246), (0.85, 11), (0.5, 7)]
+2026-10-01 18:58:58,519 - INFO - opinion-conf values (top): [(0.8, 775), (0.9, 174), (0.7, 34), (0.85, 30), (0.95, 14), (0.75, 1)]
+2026-10-01 18:58:58,519 - INFO - most common opinions: [('neutral', 62), ('recommended', 13), ('informative', 10), ('indifferent', 9), ('high quality', 9), ('poor quality', 7), ('delicious', 7), ('highly recommended', 5)]
+2026-10-01 18:58:58,519 - INFO - ------------------------------------------------
+2026-10-01 18:58:58,519 - INFO - Train instances: 1030 | implicit+valid: 1030 | with aux: 1030
+2026-10-01 18:58:58,520 - INFO - train: 876 instances | {'negative': 218, 'neutral': 358, 'positive': 300} | majority-class acc 0.409
+2026-10-01 18:58:58,520 - INFO - val: 154 instances | {'neutral': 63, 'negative': 38, 'positive': 53} | majority-class acc 0.409
+2026-10-01 18:58:59,091 - INFO - Dropped train rows whose aux labels contain <unk> (non-English text): 876 -> 872
+2026-10-01 18:58:59,092 - INFO - [aspect] input : Given the sentence "20 minutes for our reservation but it gave us time to have a few cocktails and enjoy our surroundings and each other.", what is the mentioned aspect towards reservation?
+2026-10-01 18:58:59,093 - INFO - [aspect] target: Leisure Time Utilization
+2026-10-01 18:58:59,093 - INFO - [opinion] input : Given the sentence "20 minutes for our reservation but it gave us time to have a few cocktails and enjoy our surroundings and each other.", the mentioned aspect towards reservation is "Leisure Time Utilization". What is the underlying opinion towards reservation?
+2026-10-01 18:58:59,093 - INFO - [opinion] target: Underutilized leisure time
+2026-10-01 18:58:59,093 - INFO - [polarity] input : Given the sentence "20 minutes for our reservation but it gave us time to have a few cocktails and enjoy our surroundings and each other.", what is the sentiment polarity towards reservation? Options: positive, negative, neutral.
+2026-10-01 18:58:59,093 - INFO - [polarity] target: negative
+2026-10-01 18:58:59,093 - INFO - [example confidences] aspect=0.95 opinion=0.80
+2026-10-01 18:59:00,997 - INFO - Polarity word positive  -> token ids [1465]
+2026-10-01 18:59:00,998 - INFO - Polarity word negative  -> token ids [2841]
+2026-10-01 18:59:00,998 - INFO - Polarity word neutral   -> token ids [7163]
+2026-10-01 18:59:00,998 - INFO - MT-ISA model: google/flan-t5-base | D-AWL=none | T-AWL=alf2
+2026-10-01 18:59:01,966 - INFO - Zero-shot Flan-T5 on val: loss 0.7306 | F1 0.3872 | Acc 0.4545
+2026-10-01 18:59:01,966 - INFO - ======================================================================
+2026-10-01 18:59:01,966 - INFO - Epoch 1/20
+2026-10-01 18:59:28,677 - INFO - Train loss 9.8645 | F1 0.4593 | Acc 0.4507 | parts {'aspect': 3.8429, 'opinion': 3.552, 'polarity': 0.6119} | skipped 0
+2026-10-01 18:59:28,677 - INFO - Val   loss 0.5139 | F1 0.4943 | Acc 0.5130
+2026-10-01 18:59:28,677 - INFO - Task weights (normalised): {'aspect': 0.327, 'opinion': 0.326, 'polarity': 0.347} | sigma^2: {'aspect': 1.142, 'opinion': 1.145, 'polarity': 1.074}
+2026-10-01 18:59:34,139 - INFO - New best (val macro-F1 0.4943) saved.
+2026-10-01 18:59:34,139 - INFO - ======================================================================
+2026-10-01 18:59:34,139 - INFO - Epoch 2/20
+2026-10-01 18:59:57,716 - INFO - Train loss 7.0367 | F1 0.5302 | Acc 0.5206 | parts {'aspect': 2.6187, 'opinion': 2.809, 'polarity': 0.4946} | skipped 0
+2026-10-01 18:59:57,716 - INFO - Val   loss 0.4452 | F1 0.6133 | Acc 0.6104
+2026-10-01 18:59:57,716 - INFO - Task weights (normalised): {'aspect': 0.285, 'opinion': 0.282, 'polarity': 0.433} | sigma^2: {'aspect': 1.491, 'opinion': 1.512, 'polarity': 0.983}
+2026-10-01 19:00:01,885 - INFO - New best (val macro-F1 0.6133) saved.
+2026-10-01 19:00:01,885 - INFO - ======================================================================
+2026-10-01 19:00:01,885 - INFO - Epoch 3/20
+2026-10-01 19:00:26,670 - INFO - Train loss 5.9412 | F1 0.5982 | Acc 0.5975 | parts {'aspect': 2.2568, 'opinion': 2.4953, 'polarity': 0.4258} | skipped 0
+2026-10-01 19:00:26,670 - INFO - Val   loss 0.4650 | F1 0.6058 | Acc 0.6169
+2026-10-01 19:00:26,670 - INFO - Task weights (normalised): {'aspect': 0.251, 'opinion': 0.244, 'polarity': 0.505} | sigma^2: {'aspect': 1.802, 'opinion': 1.851, 'polarity': 0.894}
+2026-10-01 19:00:26,670 - INFO - No improvement: 1/10
+2026-10-01 19:00:26,670 - INFO - ======================================================================
+2026-10-01 19:00:26,670 - INFO - Epoch 4/20
+2026-10-01 19:00:50,676 - INFO - Train loss 5.4406 | F1 0.6596 | Acc 0.6537 | parts {'aspect': 2.0292, 'opinion': 2.2883, 'polarity': 0.3795} | skipped 0
+2026-10-01 19:00:50,676 - INFO - Val   loss 0.4017 | F1 0.6680 | Acc 0.6688
+2026-10-01 19:00:50,676 - INFO - Task weights (normalised): {'aspect': 0.227, 'opinion': 0.218, 'polarity': 0.555} | sigma^2: {'aspect': 2.029, 'opinion': 2.116, 'polarity': 0.829}
+2026-10-01 19:00:55,426 - INFO - New best (val macro-F1 0.6680) saved.
+2026-10-01 19:00:55,426 - INFO - ======================================================================
+2026-10-01 19:00:55,426 - INFO - Epoch 5/20
+2026-10-01 19:01:22,082 - INFO - Train loss 5.1945 | F1 0.7118 | Acc 0.7099 | parts {'aspect': 1.9126, 'opinion': 2.1356, 'polarity': 0.3442} | skipped 0
+2026-10-01 19:01:22,082 - INFO - Val   loss 0.4083 | F1 0.6945 | Acc 0.6948
+2026-10-01 19:01:22,082 - INFO - Task weights (normalised): {'aspect': 0.207, 'opinion': 0.196, 'polarity': 0.597} | sigma^2: {'aspect': 2.168, 'opinion': 2.287, 'polarity': 0.752}
+2026-10-01 19:01:25,511 - INFO - New best (val macro-F1 0.6945) saved.
+2026-10-01 19:01:25,511 - INFO - ======================================================================
+2026-10-01 19:01:25,511 - INFO - Epoch 6/20
+2026-10-01 19:01:51,466 - INFO - Train loss 4.9581 | F1 0.7816 | Acc 0.7798 | parts {'aspect': 1.7802, 'opinion': 2.0539, 'polarity': 0.2604} | skipped 0
+2026-10-01 19:01:51,466 - INFO - Val   loss 0.4085 | F1 0.7004 | Acc 0.7013
+2026-10-01 19:01:51,466 - INFO - Task weights (normalised): {'aspect': 0.188, 'opinion': 0.176, 'polarity': 0.636} | sigma^2: {'aspect': 2.255, 'opinion': 2.408, 'polarity': 0.668}
+2026-10-01 19:01:54,868 - INFO - New best (val macro-F1 0.7004) saved.
+2026-10-01 19:01:54,868 - INFO - ======================================================================
+2026-10-01 19:01:54,868 - INFO - Epoch 7/20
+2026-10-01 19:02:19,058 - INFO - Train loss 4.8084 | F1 0.8214 | Acc 0.8222 | parts {'aspect': 1.6789, 'opinion': 1.9529, 'polarity': 0.2254} | skipped 0
+2026-10-01 19:02:19,058 - INFO - Val   loss 0.4576 | F1 0.7044 | Acc 0.7078
+2026-10-01 19:02:19,058 - INFO - Task weights (normalised): {'aspect': 0.172, 'opinion': 0.159, 'polarity': 0.668} | sigma^2: {'aspect': 2.294, 'opinion': 2.479, 'polarity': 0.591}
+2026-10-01 19:02:37,429 - INFO - New best (val macro-F1 0.7044) saved.
+2026-10-01 19:02:37,429 - INFO - ======================================================================
+2026-10-01 19:02:37,429 - INFO - Epoch 8/20
+2026-10-01 19:03:01,464 - INFO - Train loss 4.6641 | F1 0.8632 | Acc 0.8647 | parts {'aspect': 1.6374, 'opinion': 1.8774, 'polarity': 0.1729} | skipped 0
+2026-10-01 19:03:01,464 - INFO - Val   loss 0.4775 | F1 0.7046 | Acc 0.7078
+2026-10-01 19:03:01,464 - INFO - Task weights (normalised): {'aspect': 0.162, 'opinion': 0.149, 'polarity': 0.689} | sigma^2: {'aspect': 2.3, 'opinion': 2.503, 'polarity': 0.541}
+2026-10-01 19:03:07,022 - INFO - New best (val macro-F1 0.7046) saved.
+2026-10-01 19:03:07,022 - INFO - ======================================================================
+2026-10-01 19:03:07,022 - INFO - Epoch 9/20
+2026-10-01 19:03:31,521 - INFO - Train loss 4.5780 | F1 0.8626 | Acc 0.8635 | parts {'aspect': 1.5268, 'opinion': 1.8463, 'polarity': 0.1614} | skipped 0
+2026-10-01 19:03:31,521 - INFO - Val   loss 0.5206 | F1 0.7235 | Acc 0.7273
+2026-10-01 19:03:31,521 - INFO - Task weights (normalised): {'aspect': 0.152, 'opinion': 0.138, 'polarity': 0.71} | sigma^2: {'aspect': 2.293, 'opinion': 2.516, 'polarity': 0.49}
+2026-10-01 19:03:51,324 - INFO - New best (val macro-F1 0.7235) saved.
+2026-10-01 19:03:51,324 - INFO - ======================================================================
+2026-10-01 19:03:51,324 - INFO - Epoch 10/20
+2026-10-01 19:04:18,402 - INFO - Train loss 4.4569 | F1 0.8976 | Acc 0.8968 | parts {'aspect': 1.4979, 'opinion': 1.7783, 'polarity': 0.1233} | skipped 0
+2026-10-01 19:04:18,402 - INFO - Val   loss 0.5095 | F1 0.7386 | Acc 0.7468
+2026-10-01 19:04:18,402 - INFO - Task weights (normalised): {'aspect': 0.145, 'opinion': 0.132, 'polarity': 0.723} | sigma^2: {'aspect': 2.277, 'opinion': 2.517, 'polarity': 0.458}
+2026-10-01 19:04:23,119 - INFO - New best (val macro-F1 0.7386) saved.
+2026-10-01 19:04:23,119 - INFO - ======================================================================
+2026-10-01 19:04:23,119 - INFO - Epoch 11/20
+2026-10-01 19:04:46,801 - INFO - Train loss 4.3695 | F1 0.9211 | Acc 0.9209 | parts {'aspect': 1.4144, 'opinion': 1.7468, 'polarity': 0.1079} | skipped 0
+2026-10-01 19:04:46,801 - INFO - Val   loss 0.5927 | F1 0.7141 | Acc 0.7208
+2026-10-01 19:04:46,801 - INFO - Task weights (normalised): {'aspect': 0.136, 'opinion': 0.122, 'polarity': 0.741} | sigma^2: {'aspect': 2.253, 'opinion': 2.51, 'polarity': 0.415}
+2026-10-01 19:04:46,801 - INFO - No improvement: 1/10
+2026-10-01 19:04:46,801 - INFO - ======================================================================
+2026-10-01 19:04:46,801 - INFO - Epoch 12/20
+2026-10-01 19:05:11,569 - INFO - Train loss 4.2944 | F1 0.9481 | Acc 0.9472 | parts {'aspect': 1.3684, 'opinion': 1.6889, 'polarity': 0.0973} | skipped 0
+2026-10-01 19:05:11,569 - INFO - Val   loss 0.5810 | F1 0.7168 | Acc 0.7208
+2026-10-01 19:05:11,569 - INFO - Task weights (normalised): {'aspect': 0.13, 'opinion': 0.116, 'polarity': 0.753} | sigma^2: {'aspect': 2.226, 'opinion': 2.496, 'polarity': 0.385}
+2026-10-01 19:05:11,569 - INFO - No improvement: 2/10
+2026-10-01 19:05:11,569 - INFO - ======================================================================
+2026-10-01 19:05:11,569 - INFO - Epoch 13/20
+2026-10-01 19:05:36,609 - INFO - Train loss 4.2193 | F1 0.9480 | Acc 0.9495 | parts {'aspect': 1.3561, 'opinion': 1.6613, 'polarity': 0.0767} | skipped 0
+2026-10-01 19:05:36,609 - INFO - Val   loss 0.6086 | F1 0.7135 | Acc 0.7143
+2026-10-01 19:05:36,609 - INFO - Task weights (normalised): {'aspect': 0.124, 'opinion': 0.11, 'polarity': 0.765} | sigma^2: {'aspect': 2.199, 'opinion': 2.482, 'polarity': 0.357}
+2026-10-01 19:05:36,609 - INFO - No improvement: 3/10
+2026-10-01 19:05:36,609 - INFO - ======================================================================
+2026-10-01 19:05:36,609 - INFO - Epoch 14/20
+2026-10-01 19:06:01,861 - INFO - Train loss 4.1732 | F1 0.9439 | Acc 0.9427 | parts {'aspect': 1.3119, 'opinion': 1.6436, 'polarity': 0.0717} | skipped 0
+2026-10-01 19:06:01,861 - INFO - Val   loss 0.6274 | F1 0.7205 | Acc 0.7208
+2026-10-01 19:06:01,861 - INFO - Task weights (normalised): {'aspect': 0.119, 'opinion': 0.105, 'polarity': 0.776} | sigma^2: {'aspect': 2.174, 'opinion': 2.47, 'polarity': 0.334}
+2026-10-01 19:06:01,861 - INFO - No improvement: 4/10
+2026-10-01 19:06:01,861 - INFO - ======================================================================
+2026-10-01 19:06:01,861 - INFO - Epoch 15/20
+2026-10-01 19:06:26,315 - INFO - Train loss 4.1168 | F1 0.9560 | Acc 0.9564 | parts {'aspect': 1.2863, 'opinion': 1.5977, 'polarity': 0.0644} | skipped 0
+2026-10-01 19:06:26,315 - INFO - Val   loss 0.6352 | F1 0.7252 | Acc 0.7273
+2026-10-01 19:06:26,316 - INFO - Task weights (normalised): {'aspect': 0.116, 'opinion': 0.102, 'polarity': 0.783} | sigma^2: {'aspect': 2.152, 'opinion': 2.453, 'polarity': 0.318}
+2026-10-01 19:06:26,316 - INFO - No improvement: 5/10
+2026-10-01 19:06:26,316 - INFO - ======================================================================
+2026-10-01 19:06:26,316 - INFO - Epoch 16/20
+2026-10-01 19:06:51,482 - INFO - Train loss 4.0912 | F1 0.9607 | Acc 0.9610 | parts {'aspect': 1.2853, 'opinion': 1.5889, 'polarity': 0.0584} | skipped 0
+2026-10-01 19:06:51,482 - INFO - Val   loss 0.6693 | F1 0.7128 | Acc 0.7143
+2026-10-01 19:06:51,482 - INFO - Task weights (normalised): {'aspect': 0.113, 'opinion': 0.099, 'polarity': 0.788} | sigma^2: {'aspect': 2.137, 'opinion': 2.442, 'polarity': 0.306}
+2026-10-01 19:06:51,482 - INFO - No improvement: 6/10
+2026-10-01 19:06:51,482 - INFO - ======================================================================
+2026-10-01 19:06:51,482 - INFO - Epoch 17/20
+2026-10-01 19:07:15,677 - INFO - Train loss 4.0226 | F1 0.9749 | Acc 0.9748 | parts {'aspect': 1.2956, 'opinion': 1.5999, 'polarity': 0.0359} | skipped 0
+2026-10-01 19:07:15,677 - INFO - Val   loss 0.7514 | F1 0.7071 | Acc 0.7078
+2026-10-01 19:07:15,677 - INFO - Task weights (normalised): {'aspect': 0.11, 'opinion': 0.096, 'polarity': 0.794} | sigma^2: {'aspect': 2.123, 'opinion': 2.431, 'polarity': 0.294}
+2026-10-01 19:07:15,677 - INFO - No improvement: 7/10
+2026-10-01 19:07:15,677 - INFO - ======================================================================
+2026-10-01 19:07:15,677 - INFO - Epoch 18/20
+2026-10-01 19:07:39,717 - INFO - Train loss 4.0603 | F1 0.9610 | Acc 0.9610 | parts {'aspect': 1.2521, 'opinion': 1.5921, 'polarity': 0.0549} | skipped 0
+2026-10-01 19:07:39,717 - INFO - Val   loss 0.7441 | F1 0.7128 | Acc 0.7143
+2026-10-01 19:07:39,717 - INFO - Task weights (normalised): {'aspect': 0.108, 'opinion': 0.095, 'polarity': 0.797} | sigma^2: {'aspect': 2.113, 'opinion': 2.424, 'polarity': 0.288}
+2026-10-01 19:07:39,717 - INFO - No improvement: 8/10
+2026-10-01 19:07:39,717 - INFO - ======================================================================
+2026-10-01 19:07:39,717 - INFO - Epoch 19/20
+2026-10-01 19:08:06,247 - INFO - Train loss 4.0219 | F1 0.9748 | Acc 0.9748 | parts {'aspect': 1.2726, 'opinion': 1.5695, 'polarity': 0.0442} | skipped 0
+2026-10-01 19:08:06,247 - INFO - Val   loss 0.7379 | F1 0.7130 | Acc 0.7143
+2026-10-01 19:08:06,247 - INFO - Task weights (normalised): {'aspect': 0.108, 'opinion': 0.094, 'polarity': 0.799} | sigma^2: {'aspect': 2.107, 'opinion': 2.42, 'polarity': 0.284}
+2026-10-01 19:08:06,247 - INFO - No improvement: 9/10
+2026-10-01 19:08:06,247 - INFO - ======================================================================
+2026-10-01 19:08:06,247 - INFO - Epoch 20/20
+2026-10-01 19:08:31,649 - INFO - Train loss 3.9998 | F1 0.9708 | Acc 0.9713 | parts {'aspect': 1.2305, 'opinion': 1.5816, 'polarity': 0.0424} | skipped 0
+2026-10-01 19:08:31,649 - INFO - Val   loss 0.7453 | F1 0.7130 | Acc 0.7143
+2026-10-01 19:08:31,649 - INFO - Task weights (normalised): {'aspect': 0.107, 'opinion': 0.093, 'polarity': 0.799} | sigma^2: {'aspect': 2.104, 'opinion': 2.418, 'polarity': 0.282}
+2026-10-01 19:08:31,649 - INFO - No improvement: 10/10
+2026-10-01 19:08:31,649 - INFO - Early stopping.
+2026-10-01 19:08:31,650 - INFO - Done. Best val macro-F1 0.7386 at epoch 10
+2026-10-01 19:08:31,936 - INFO - test: 267 instances | {'neutral': 137, 'negative': 54, 'positive': 76} | majority-class acc 0.513
+2026-10-01 19:08:32,212 - INFO - TEST (best ckpt, epoch 10): Acc 0.6217 | macro-F1 0.6188
+2026-10-01 19:08:32,213 - INFO - Confusion matrix (rows=gold, cols=pred; order ['positive', 'negative', 'neutral']):
+[[67  5  4]
+ [ 9 33 12]
+ [53 18 66]]
+[done] mtl_tawl_lr1e-4_s1 in 578s
+
+=================== [run] in_conv_lr1e-4_s1   10/01/2026 19:08:33 ===================
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:441: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+2026-10-01 19:08:36,833 - INFO - Device: cuda | args: {'train_data': 'data/processed/restaurant14_train_implicit.json', 'aux_data': 'data/auxiliary/restaurant14_train_implicit_aux_qwen7b_full.json', 'val_data': None, 'test_data': 'data/processed/restaurant14_test_implicit.json', 'model_name': 'google/flan-t5-base', 'output_dir': 'models/exp_in_conv_lr1e-4_s1', 'batch_size': 32, 'grad_accum': 1, 'eval_batch_size': 32, 'lr': 0.0001, 'awl_lr': 0.01, 'warmup_ratio': 0.06, 'num_epochs': 20, 'patience': 10, 'validation_fraction': 0.15, 'max_length': 128, 'd_awl_strategy': 'input', 't_awl_version': 'alf2', 'freeze_t_awl': False, 'conf_source': 'convergence', 'drop_nonconverged': False, 'keep_unk_labels': False, 'polarity_only': False, 'bf16': True, 'seed': 1, 'num_workers': 0, 'max_instances': None}
+2026-10-01 19:08:36,837 - INFO - ---- auxiliary data diagnostics (1030 rows) ----
+2026-10-01 19:08:36,837 - INFO - converged: 840 (81.6%) | mean iterations: 2.22
+2026-10-01 19:08:36,837 - INFO - aspect == target: 1 (0.1%)
+2026-10-01 19:08:36,837 - INFO - aspect-conf values (top): [(0.9, 405), (0.8, 361), (0.95, 246), (0.85, 11), (0.5, 7)]
+2026-10-01 19:08:36,837 - INFO - opinion-conf values (top): [(0.8, 775), (0.9, 174), (0.7, 34), (0.85, 30), (0.95, 14), (0.75, 1)]
+2026-10-01 19:08:36,837 - INFO - most common opinions: [('neutral', 62), ('recommended', 13), ('informative', 10), ('indifferent', 9), ('high quality', 9), ('poor quality', 7), ('delicious', 7), ('highly recommended', 5)]
+2026-10-01 19:08:36,837 - INFO - ------------------------------------------------
+2026-10-01 19:08:36,838 - INFO - Train instances: 1030 | implicit+valid: 1030 | with aux: 1030
+2026-10-01 19:08:36,838 - INFO - train: 876 instances | {'negative': 218, 'neutral': 358, 'positive': 300} | majority-class acc 0.409
+2026-10-01 19:08:36,838 - INFO - val: 154 instances | {'neutral': 63, 'negative': 38, 'positive': 53} | majority-class acc 0.409
+2026-10-01 19:08:37,365 - INFO - Dropped train rows whose aux labels contain <unk> (non-English text): 876 -> 872
+2026-10-01 19:08:37,366 - INFO - [aspect] input : Given the sentence "20 minutes for our reservation but it gave us time to have a few cocktails and enjoy our surroundings and each other.", what is the mentioned aspect towards reservation?
+2026-10-01 19:08:37,367 - INFO - [aspect] target: Leisure Time Utilization
+2026-10-01 19:08:37,367 - INFO - [opinion] input : Given the sentence "20 minutes for our reservation but it gave us time to have a few cocktails and enjoy our surroundings and each other.", the mentioned aspect towards reservation is "Leisure Time Utilization". What is the underlying opinion towards reservation?
+2026-10-01 19:08:37,367 - INFO - [opinion] target: Underutilized leisure time
+2026-10-01 19:08:37,367 - INFO - [polarity] input : Given the sentence "20 minutes for our reservation but it gave us time to have a few cocktails and enjoy our surroundings and each other.", what is the sentiment polarity towards reservation? Options: positive, negative, neutral.
+2026-10-01 19:08:37,367 - INFO - [polarity] target: negative
+2026-10-01 19:08:37,367 - INFO - [example confidences] aspect=0.95 opinion=0.95
+2026-10-01 19:08:39,183 - INFO - Polarity word positive  -> token ids [1465]
+2026-10-01 19:08:39,183 - INFO - Polarity word negative  -> token ids [2841]
+2026-10-01 19:08:39,183 - INFO - Polarity word neutral   -> token ids [7163]
+2026-10-01 19:08:39,183 - INFO - MT-ISA model: google/flan-t5-base | D-AWL=input | T-AWL=alf2
+2026-10-01 19:08:40,104 - INFO - Zero-shot Flan-T5 on val: loss 0.7306 | F1 0.3872 | Acc 0.4545
+2026-10-01 19:08:40,104 - INFO - ======================================================================
+2026-10-01 19:08:40,104 - INFO - Epoch 1/20
+2026-10-01 19:09:05,909 - INFO - Train loss 9.9624 | F1 0.4606 | Acc 0.4518 | parts {'aspect': 3.9092, 'opinion': 3.584, 'polarity': 0.6132} | skipped 0
+2026-10-01 19:09:05,909 - INFO - Val   loss 0.5110 | F1 0.5000 | Acc 0.5195
+2026-10-01 19:09:05,909 - INFO - Task weights (normalised): {'aspect': 0.327, 'opinion': 0.326, 'polarity': 0.347} | sigma^2: {'aspect': 1.142, 'opinion': 1.144, 'polarity': 1.076}
+2026-10-01 19:09:11,326 - INFO - New best (val macro-F1 0.5000) saved.
+2026-10-01 19:09:11,326 - INFO - ======================================================================
+2026-10-01 19:09:11,326 - INFO - Epoch 2/20
+2026-10-01 19:09:34,860 - INFO - Train loss 7.0774 | F1 0.5301 | Acc 0.5195 | parts {'aspect': 2.6415, 'opinion': 2.8403, 'polarity': 0.4981} | skipped 0
+2026-10-01 19:09:34,860 - INFO - Val   loss 0.4467 | F1 0.6083 | Acc 0.6039
+2026-10-01 19:09:34,860 - INFO - Task weights (normalised): {'aspect': 0.285, 'opinion': 0.281, 'polarity': 0.433} | sigma^2: {'aspect': 1.5, 'opinion': 1.522, 'polarity': 0.989}
+2026-10-01 19:09:38,408 - INFO - New best (val macro-F1 0.6083) saved.
+2026-10-01 19:09:38,408 - INFO - ======================================================================
+2026-10-01 19:09:38,408 - INFO - Epoch 3/20
+2026-10-01 19:10:01,940 - INFO - Train loss 5.9516 | F1 0.5947 | Acc 0.5940 | parts {'aspect': 2.2704, 'opinion': 2.5117, 'polarity': 0.4322} | skipped 0
+2026-10-01 19:10:01,941 - INFO - Val   loss 0.4605 | F1 0.6164 | Acc 0.6234
+2026-10-01 19:10:01,941 - INFO - Task weights (normalised): {'aspect': 0.25, 'opinion': 0.244, 'polarity': 0.506} | sigma^2: {'aspect': 1.822, 'opinion': 1.873, 'polarity': 0.902}
+2026-10-01 19:10:10,888 - INFO - New best (val macro-F1 0.6164) saved.
+2026-10-01 19:10:10,888 - INFO - ======================================================================
+2026-10-01 19:10:10,888 - INFO - Epoch 4/20
+2026-10-01 19:10:34,830 - INFO - Train loss 5.4454 | F1 0.6548 | Acc 0.6491 | parts {'aspect': 2.0362, 'opinion': 2.3004, 'polarity': 0.3846} | skipped 0
+2026-10-01 19:10:34,830 - INFO - Val   loss 0.3968 | F1 0.6609 | Acc 0.6623
+2026-10-01 19:10:34,830 - INFO - Task weights (normalised): {'aspect': 0.226, 'opinion': 0.217, 'polarity': 0.557} | sigma^2: {'aspect': 2.055, 'opinion': 2.146, 'polarity': 0.836}
+2026-10-01 19:10:40,192 - INFO - New best (val macro-F1 0.6609) saved.
+2026-10-01 19:10:40,192 - INFO - ======================================================================
+2026-10-01 19:10:40,192 - INFO - Epoch 5/20
+2026-10-01 19:11:05,176 - INFO - Train loss 5.2126 | F1 0.6990 | Acc 0.6972 | parts {'aspect': 1.928, 'opinion': 2.1562, 'polarity': 0.3507} | skipped 0
+2026-10-01 19:11:05,176 - INFO - Val   loss 0.4049 | F1 0.6740 | Acc 0.6753
+2026-10-01 19:11:05,176 - INFO - Task weights (normalised): {'aspect': 0.206, 'opinion': 0.195, 'polarity': 0.6} | sigma^2: {'aspect': 2.197, 'opinion': 2.32, 'polarity': 0.753}
+2026-10-01 19:11:08,836 - INFO - New best (val macro-F1 0.6740) saved.
+2026-10-01 19:11:08,836 - INFO - ======================================================================
+2026-10-01 19:11:08,836 - INFO - Epoch 6/20
+2026-10-01 19:11:34,123 - INFO - Train loss 4.9717 | F1 0.7714 | Acc 0.7695 | parts {'aspect': 1.7857, 'opinion': 2.0672, 'polarity': 0.2667} | skipped 0
+2026-10-01 19:11:34,123 - INFO - Val   loss 0.4033 | F1 0.7010 | Acc 0.7013
+2026-10-01 19:11:34,123 - INFO - Task weights (normalised): {'aspect': 0.188, 'opinion': 0.176, 'polarity': 0.635} | sigma^2: {'aspect': 2.283, 'opinion': 2.44, 'polarity': 0.678}
+2026-10-01 19:11:37,496 - INFO - New best (val macro-F1 0.7010) saved.
+2026-10-01 19:11:37,496 - INFO - ======================================================================
+2026-10-01 19:11:37,496 - INFO - Epoch 7/20
+2026-10-01 19:12:00,027 - INFO - Train loss 4.8259 | F1 0.8159 | Acc 0.8165 | parts {'aspect': 1.6886, 'opinion': 1.9694, 'polarity': 0.2303} | skipped 0
+2026-10-01 19:12:00,027 - INFO - Val   loss 0.4413 | F1 0.7110 | Acc 0.7143
+2026-10-01 19:12:00,027 - INFO - Task weights (normalised): {'aspect': 0.173, 'opinion': 0.16, 'polarity': 0.667} | sigma^2: {'aspect': 2.319, 'opinion': 2.51, 'polarity': 0.601}
+2026-10-01 19:12:10,867 - INFO - New best (val macro-F1 0.7110) saved.
+2026-10-01 19:12:10,867 - INFO - ======================================================================
+2026-10-01 19:12:10,867 - INFO - Epoch 8/20
+2026-10-01 19:12:34,895 - INFO - Train loss 4.6813 | F1 0.8688 | Acc 0.8704 | parts {'aspect': 1.6463, 'opinion': 1.8988, 'polarity': 0.1755} | skipped 0
+2026-10-01 19:12:34,896 - INFO - Val   loss 0.4635 | F1 0.7055 | Acc 0.7078
+2026-10-01 19:12:34,896 - INFO - Task weights (normalised): {'aspect': 0.163, 'opinion': 0.149, 'polarity': 0.688} | sigma^2: {'aspect': 2.323, 'opinion': 2.533, 'polarity': 0.549}
+2026-10-01 19:12:34,896 - INFO - No improvement: 1/10
+2026-10-01 19:12:34,896 - INFO - ======================================================================
+2026-10-01 19:12:34,896 - INFO - Epoch 9/20
+2026-10-01 19:12:59,238 - INFO - Train loss 4.5986 | F1 0.8551 | Acc 0.8567 | parts {'aspect': 1.5383, 'opinion': 1.8608, 'polarity': 0.1663} | skipped 0
+2026-10-01 19:12:59,239 - INFO - Val   loss 0.4879 | F1 0.7116 | Acc 0.7143
+2026-10-01 19:12:59,239 - INFO - Task weights (normalised): {'aspect': 0.153, 'opinion': 0.139, 'polarity': 0.709} | sigma^2: {'aspect': 2.316, 'opinion': 2.545, 'polarity': 0.499}
+2026-10-01 19:13:04,229 - INFO - New best (val macro-F1 0.7116) saved.
+2026-10-01 19:13:04,229 - INFO - ======================================================================
+2026-10-01 19:13:04,229 - INFO - Epoch 10/20
+2026-10-01 19:13:29,423 - INFO - Train loss 4.4787 | F1 0.8967 | Acc 0.8968 | parts {'aspect': 1.4993, 'opinion': 1.7971, 'polarity': 0.1291} | skipped 0
+2026-10-01 19:13:29,423 - INFO - Val   loss 0.4951 | F1 0.7269 | Acc 0.7338
+2026-10-01 19:13:29,423 - INFO - Task weights (normalised): {'aspect': 0.147, 'opinion': 0.132, 'polarity': 0.721} | sigma^2: {'aspect': 2.296, 'opinion': 2.544, 'polarity': 0.467}
+2026-10-01 19:13:32,891 - INFO - New best (val macro-F1 0.7269) saved.
+2026-10-01 19:13:32,891 - INFO - ======================================================================
+2026-10-01 19:13:32,891 - INFO - Epoch 11/20
+2026-10-01 19:13:56,344 - INFO - Train loss 4.3855 | F1 0.9136 | Acc 0.9128 | parts {'aspect': 1.4228, 'opinion': 1.7605, 'polarity': 0.1101} | skipped 0
+2026-10-01 19:13:56,345 - INFO - Val   loss 0.5742 | F1 0.7077 | Acc 0.7143
+2026-10-01 19:13:56,345 - INFO - Task weights (normalised): {'aspect': 0.137, 'opinion': 0.123, 'polarity': 0.74} | sigma^2: {'aspect': 2.268, 'opinion': 2.535, 'polarity': 0.421}
+2026-10-01 19:13:56,345 - INFO - No improvement: 1/10
+2026-10-01 19:13:56,345 - INFO - ======================================================================
+2026-10-01 19:13:56,345 - INFO - Epoch 12/20
+2026-10-01 19:14:21,388 - INFO - Train loss 4.3157 | F1 0.9434 | Acc 0.9427 | parts {'aspect': 1.3819, 'opinion': 1.6999, 'polarity': 0.101} | skipped 0
+2026-10-01 19:14:21,388 - INFO - Val   loss 0.5708 | F1 0.7168 | Acc 0.7208
+2026-10-01 19:14:21,388 - INFO - Task weights (normalised): {'aspect': 0.132, 'opinion': 0.117, 'polarity': 0.751} | sigma^2: {'aspect': 2.239, 'opinion': 2.52, 'polarity': 0.392}
+2026-10-01 19:14:21,389 - INFO - No improvement: 2/10
+2026-10-01 19:14:21,389 - INFO - ======================================================================
+2026-10-01 19:14:21,389 - INFO - Epoch 13/20
+2026-10-01 19:14:44,778 - INFO - Train loss 4.2360 | F1 0.9451 | Acc 0.9461 | parts {'aspect': 1.3629, 'opinion': 1.6728, 'polarity': 0.0793} | skipped 0
+2026-10-01 19:14:44,779 - INFO - Val   loss 0.6016 | F1 0.7205 | Acc 0.7208
+2026-10-01 19:14:44,779 - INFO - Task weights (normalised): {'aspect': 0.126, 'opinion': 0.111, 'polarity': 0.763} | sigma^2: {'aspect': 2.21, 'opinion': 2.503, 'polarity': 0.364}
+2026-10-01 19:14:44,779 - INFO - No improvement: 3/10
+2026-10-01 19:14:44,779 - INFO - ======================================================================
+2026-10-01 19:14:44,779 - INFO - Epoch 14/20
+2026-10-01 19:15:09,900 - INFO - Train loss 4.1914 | F1 0.9399 | Acc 0.9392 | parts {'aspect': 1.3252, 'opinion': 1.6547, 'polarity': 0.0737} | skipped 0
+2026-10-01 19:15:09,900 - INFO - Val   loss 0.6057 | F1 0.7265 | Acc 0.7273
+2026-10-01 19:15:09,900 - INFO - Task weights (normalised): {'aspect': 0.12, 'opinion': 0.106, 'polarity': 0.774} | sigma^2: {'aspect': 2.186, 'opinion': 2.49, 'polarity': 0.34}
+2026-10-01 19:15:09,900 - INFO - No improvement: 4/10
+2026-10-01 19:15:09,900 - INFO - ======================================================================
+2026-10-01 19:15:09,900 - INFO - Epoch 15/20
+2026-10-01 19:15:33,054 - INFO - Train loss 4.1336 | F1 0.9548 | Acc 0.9553 | parts {'aspect': 1.2967, 'opinion': 1.6121, 'polarity': 0.0658} | skipped 0
+2026-10-01 19:15:33,054 - INFO - Val   loss 0.6142 | F1 0.7252 | Acc 0.7273
+2026-10-01 19:15:33,054 - INFO - Task weights (normalised): {'aspect': 0.117, 'opinion': 0.103, 'polarity': 0.78} | sigma^2: {'aspect': 2.163, 'opinion': 2.473, 'polarity': 0.325}
+2026-10-01 19:15:33,054 - INFO - No improvement: 5/10
+2026-10-01 19:15:33,054 - INFO - ======================================================================
+2026-10-01 19:15:33,054 - INFO - Epoch 16/20
+2026-10-01 19:15:57,453 - INFO - Train loss 4.0966 | F1 0.9617 | Acc 0.9622 | parts {'aspect': 1.2906, 'opinion': 1.6038, 'polarity': 0.0569} | skipped 0
+2026-10-01 19:15:57,453 - INFO - Val   loss 0.6658 | F1 0.7123 | Acc 0.7143
+2026-10-01 19:15:57,453 - INFO - Task weights (normalised): {'aspect': 0.114, 'opinion': 0.099, 'polarity': 0.787} | sigma^2: {'aspect': 2.146, 'opinion': 2.462, 'polarity': 0.31}
+2026-10-01 19:15:57,453 - INFO - No improvement: 6/10
+2026-10-01 19:15:57,453 - INFO - ======================================================================
+2026-10-01 19:15:57,453 - INFO - Epoch 17/20
+2026-10-01 19:16:21,753 - INFO - Train loss 4.0364 | F1 0.9730 | Acc 0.9725 | parts {'aspect': 1.3068, 'opinion': 1.6122, 'polarity': 0.0363} | skipped 0
+2026-10-01 19:16:21,753 - INFO - Val   loss 0.7547 | F1 0.7071 | Acc 0.7078
+2026-10-01 19:16:21,753 - INFO - Task weights (normalised): {'aspect': 0.111, 'opinion': 0.096, 'polarity': 0.793} | sigma^2: {'aspect': 2.132, 'opinion': 2.451, 'polarity': 0.298}
+2026-10-01 19:16:21,753 - INFO - No improvement: 7/10
+2026-10-01 19:16:21,753 - INFO - ======================================================================
+2026-10-01 19:16:21,753 - INFO - Epoch 18/20
+2026-10-01 19:16:44,505 - INFO - Train loss 4.0718 | F1 0.9619 | Acc 0.9622 | parts {'aspect': 1.2549, 'opinion': 1.6031, 'polarity': 0.0563} | skipped 0
+2026-10-01 19:16:44,505 - INFO - Val   loss 0.7517 | F1 0.7185 | Acc 0.7208
+2026-10-01 19:16:44,505 - INFO - Task weights (normalised): {'aspect': 0.109, 'opinion': 0.095, 'polarity': 0.796} | sigma^2: {'aspect': 2.121, 'opinion': 2.443, 'polarity': 0.291}
+2026-10-01 19:16:44,505 - INFO - No improvement: 8/10
+2026-10-01 19:16:44,505 - INFO - ======================================================================
+2026-10-01 19:16:44,505 - INFO - Epoch 19/20
+2026-10-01 19:17:09,806 - INFO - Train loss 4.0435 | F1 0.9746 | Acc 0.9748 | parts {'aspect': 1.2792, 'opinion': 1.589, 'polarity': 0.0468} | skipped 0
+2026-10-01 19:17:09,806 - INFO - Val   loss 0.7414 | F1 0.7131 | Acc 0.7143
+2026-10-01 19:17:09,806 - INFO - Task weights (normalised): {'aspect': 0.108, 'opinion': 0.094, 'polarity': 0.798} | sigma^2: {'aspect': 2.115, 'opinion': 2.439, 'polarity': 0.287}
+2026-10-01 19:17:09,806 - INFO - No improvement: 9/10
+2026-10-01 19:17:09,806 - INFO - ======================================================================
+2026-10-01 19:17:09,806 - INFO - Epoch 20/20
+2026-10-01 19:17:34,401 - INFO - Train loss 4.0114 | F1 0.9706 | Acc 0.9713 | parts {'aspect': 1.2359, 'opinion': 1.5954, 'polarity': 0.043} | skipped 0
+2026-10-01 19:17:34,401 - INFO - Val   loss 0.7446 | F1 0.7011 | Acc 0.7013
+2026-10-01 19:17:34,401 - INFO - Task weights (normalised): {'aspect': 0.108, 'opinion': 0.093, 'polarity': 0.799} | sigma^2: {'aspect': 2.112, 'opinion': 2.437, 'polarity': 0.285}
+2026-10-01 19:17:34,401 - INFO - No improvement: 10/10
+2026-10-01 19:17:34,401 - INFO - Early stopping.
+2026-10-01 19:17:34,402 - INFO - Done. Best val macro-F1 0.7269 at epoch 10
+2026-10-01 19:17:34,695 - INFO - test: 267 instances | {'neutral': 137, 'negative': 54, 'positive': 76} | majority-class acc 0.513
+2026-10-01 19:17:34,988 - INFO - TEST (best ckpt, epoch 10): Acc 0.6255 | macro-F1 0.6221
+2026-10-01 19:17:34,989 - INFO - Confusion matrix (rows=gold, cols=pred; order ['positive', 'negative', 'neutral']):
+[[68  5  3]
+ [ 8 33 13]
+ [53 18 66]]
+[done] in_conv_lr1e-4_s1 in 543s
+
+=================== [run] polonly_lr1e-4_s2   10/01/2026 19:17:36 ===================
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:441: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+2026-10-01 19:17:39,620 - INFO - Device: cuda | args: {'train_data': 'data/processed/restaurant14_train_implicit.json', 'aux_data': 'data/auxiliary/restaurant14_train_implicit_aux_qwen7b_full.json', 'val_data': None, 'test_data': 'data/processed/restaurant14_test_implicit.json', 'model_name': 'google/flan-t5-base', 'output_dir': 'models/exp_polonly_lr1e-4_s2', 'batch_size': 32, 'grad_accum': 1, 'eval_batch_size': 32, 'lr': 0.0001, 'awl_lr': 0.01, 'warmup_ratio': 0.06, 'num_epochs': 20, 'patience': 10, 'validation_fraction': 0.15, 'max_length': 128, 'd_awl_strategy': 'input', 't_awl_version': 'alf2', 'freeze_t_awl': False, 'conf_source': 'stored', 'drop_nonconverged': False, 'keep_unk_labels': False, 'polarity_only': True, 'bf16': True, 'seed': 2, 'num_workers': 0, 'max_instances': None}
+2026-10-01 19:17:39,625 - INFO - ---- auxiliary data diagnostics (1030 rows) ----
+2026-10-01 19:17:39,626 - INFO - converged: 840 (81.6%) | mean iterations: 2.22
+2026-10-01 19:17:39,626 - INFO - aspect == target: 1 (0.1%)
+2026-10-01 19:17:39,626 - INFO - aspect-conf values (top): [(0.9, 405), (0.8, 361), (0.95, 246), (0.85, 11), (0.5, 7)]
+2026-10-01 19:17:39,626 - INFO - opinion-conf values (top): [(0.8, 775), (0.9, 174), (0.7, 34), (0.85, 30), (0.95, 14), (0.75, 1)]
+2026-10-01 19:17:39,626 - INFO - most common opinions: [('neutral', 62), ('recommended', 13), ('informative', 10), ('indifferent', 9), ('high quality', 9), ('poor quality', 7), ('delicious', 7), ('highly recommended', 5)]
+2026-10-01 19:17:39,626 - INFO - ------------------------------------------------
+2026-10-01 19:17:39,626 - INFO - Train instances: 1030 | implicit+valid: 1030 | with aux: 1030
+2026-10-01 19:17:39,627 - INFO - train: 876 instances | {'negative': 218, 'neutral': 358, 'positive': 300} | majority-class acc 0.409
+2026-10-01 19:17:39,627 - INFO - val: 154 instances | {'negative': 38, 'positive': 53, 'neutral': 63} | majority-class acc 0.409
+2026-10-01 19:17:40,194 - INFO - Dropped train rows whose aux labels contain <unk> (non-English text): 876 -> 872
+2026-10-01 19:17:40,195 - INFO - [polarity] input : Given the sentence "It is obvious that no one in the restaurant has any idea about or experience with Japanese cuisine.", what is the sentiment polarity towards Japanese cuisine? Options: positive, negative, neutral.
+2026-10-01 19:17:40,195 - INFO - [polarity] target: negative
+2026-10-01 19:17:42,074 - INFO - Polarity word positive  -> token ids [1465]
+2026-10-01 19:17:42,074 - INFO - Polarity word negative  -> token ids [2841]
+2026-10-01 19:17:42,074 - INFO - Polarity word neutral   -> token ids [7163]
+2026-10-01 19:17:42,074 - INFO - MT-ISA model: google/flan-t5-base | D-AWL=input | T-AWL=alf2
+2026-10-01 19:17:42,987 - INFO - Zero-shot Flan-T5 on val: loss 0.6657 | F1 0.4160 | Acc 0.4870
+2026-10-01 19:17:42,987 - INFO - ======================================================================
+2026-10-01 19:17:42,987 - INFO - Epoch 1/20
+2026-10-01 19:17:47,552 - INFO - Train loss 0.6148 | F1 0.4574 | Acc 0.4576 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.6148} | skipped 0
+2026-10-01 19:17:47,552 - INFO - Val   loss 0.4718 | F1 0.4404 | Acc 0.5000
+2026-10-01 19:17:47,552 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 19:17:51,335 - INFO - New best (val macro-F1 0.4404) saved.
+2026-10-01 19:17:51,335 - INFO - ======================================================================
+2026-10-01 19:17:51,335 - INFO - Epoch 2/20
+2026-10-01 19:17:55,567 - INFO - Train loss 0.4661 | F1 0.5709 | Acc 0.5700 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.4661} | skipped 0
+2026-10-01 19:17:55,567 - INFO - Val   loss 0.4082 | F1 0.6331 | Acc 0.6364
+2026-10-01 19:17:55,567 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 19:18:14,311 - INFO - New best (val macro-F1 0.6331) saved.
+2026-10-01 19:18:14,311 - INFO - ======================================================================
+2026-10-01 19:18:14,311 - INFO - Epoch 3/20
+2026-10-01 19:18:19,413 - INFO - Train loss 0.3798 | F1 0.6778 | Acc 0.6755 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.3798} | skipped 0
+2026-10-01 19:18:19,413 - INFO - Val   loss 0.3900 | F1 0.7008 | Acc 0.7013
+2026-10-01 19:18:19,413 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 19:18:22,651 - INFO - New best (val macro-F1 0.7008) saved.
+2026-10-01 19:18:22,651 - INFO - ======================================================================
+2026-10-01 19:18:22,651 - INFO - Epoch 4/20
+2026-10-01 19:18:27,586 - INFO - Train loss 0.3008 | F1 0.7547 | Acc 0.7534 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.3008} | skipped 0
+2026-10-01 19:18:27,586 - INFO - Val   loss 0.4355 | F1 0.6933 | Acc 0.6948
+2026-10-01 19:18:27,586 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 19:18:27,586 - INFO - No improvement: 1/10
+2026-10-01 19:18:27,586 - INFO - ======================================================================
+2026-10-01 19:18:27,586 - INFO - Epoch 5/20
+2026-10-01 19:18:32,524 - INFO - Train loss 0.2414 | F1 0.8012 | Acc 0.8016 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.2414} | skipped 0
+2026-10-01 19:18:32,524 - INFO - Val   loss 0.4268 | F1 0.6994 | Acc 0.7013
+2026-10-01 19:18:32,524 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 19:18:32,524 - INFO - No improvement: 2/10
+2026-10-01 19:18:32,524 - INFO - ======================================================================
+2026-10-01 19:18:32,524 - INFO - Epoch 6/20
+2026-10-01 19:18:37,572 - INFO - Train loss 0.2135 | F1 0.8275 | Acc 0.8291 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.2135} | skipped 0
+2026-10-01 19:18:37,572 - INFO - Val   loss 0.4988 | F1 0.7166 | Acc 0.7208
+2026-10-01 19:18:37,572 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 19:18:47,530 - INFO - New best (val macro-F1 0.7166) saved.
+2026-10-01 19:18:47,530 - INFO - ======================================================================
+2026-10-01 19:18:47,530 - INFO - Epoch 7/20
+2026-10-01 19:18:51,437 - INFO - Train loss 0.1499 | F1 0.8830 | Acc 0.8842 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.1499} | skipped 0
+2026-10-01 19:18:51,437 - INFO - Val   loss 0.5611 | F1 0.6842 | Acc 0.6883
+2026-10-01 19:18:51,437 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 19:18:51,437 - INFO - No improvement: 1/10
+2026-10-01 19:18:51,437 - INFO - ======================================================================
+2026-10-01 19:18:51,437 - INFO - Epoch 8/20
+2026-10-01 19:18:55,942 - INFO - Train loss 0.1144 | F1 0.9109 | Acc 0.9106 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.1144} | skipped 0
+2026-10-01 19:18:55,942 - INFO - Val   loss 0.7221 | F1 0.6909 | Acc 0.6948
+2026-10-01 19:18:55,942 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 19:18:55,942 - INFO - No improvement: 2/10
+2026-10-01 19:18:55,942 - INFO - ======================================================================
+2026-10-01 19:18:55,942 - INFO - Epoch 9/20
+2026-10-01 19:19:01,139 - INFO - Train loss 0.1081 | F1 0.9206 | Acc 0.9209 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.1081} | skipped 0
+2026-10-01 19:19:01,139 - INFO - Val   loss 0.7417 | F1 0.6928 | Acc 0.6948
+2026-10-01 19:19:01,139 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 19:19:01,139 - INFO - No improvement: 3/10
+2026-10-01 19:19:01,139 - INFO - ======================================================================
+2026-10-01 19:19:01,139 - INFO - Epoch 10/20
+2026-10-01 19:19:06,326 - INFO - Train loss 0.0764 | F1 0.9390 | Acc 0.9415 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.0764} | skipped 0
+2026-10-01 19:19:06,326 - INFO - Val   loss 0.9410 | F1 0.6983 | Acc 0.7013
+2026-10-01 19:19:06,326 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 19:19:06,326 - INFO - No improvement: 4/10
+2026-10-01 19:19:06,326 - INFO - ======================================================================
+2026-10-01 19:19:06,326 - INFO - Epoch 11/20
+2026-10-01 19:19:11,387 - INFO - Train loss 0.0741 | F1 0.9446 | Acc 0.9450 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.0741} | skipped 0
+2026-10-01 19:19:11,387 - INFO - Val   loss 0.8137 | F1 0.6954 | Acc 0.6948
+2026-10-01 19:19:11,387 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 19:19:11,387 - INFO - No improvement: 5/10
+2026-10-01 19:19:11,387 - INFO - ======================================================================
+2026-10-01 19:19:11,387 - INFO - Epoch 12/20
+2026-10-01 19:19:16,478 - INFO - Train loss 0.0658 | F1 0.9552 | Acc 0.9553 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.0658} | skipped 0
+2026-10-01 19:19:16,478 - INFO - Val   loss 0.8982 | F1 0.6835 | Acc 0.6883
+2026-10-01 19:19:16,478 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 19:19:16,478 - INFO - No improvement: 6/10
+2026-10-01 19:19:16,478 - INFO - ======================================================================
+2026-10-01 19:19:16,478 - INFO - Epoch 13/20
+2026-10-01 19:19:21,602 - INFO - Train loss 0.0467 | F1 0.9656 | Acc 0.9656 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.0467} | skipped 0
+2026-10-01 19:19:21,602 - INFO - Val   loss 0.9567 | F1 0.6661 | Acc 0.6688
+2026-10-01 19:19:21,602 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 19:19:21,602 - INFO - No improvement: 7/10
+2026-10-01 19:19:21,602 - INFO - ======================================================================
+2026-10-01 19:19:21,602 - INFO - Epoch 14/20
+2026-10-01 19:19:26,008 - INFO - Train loss 0.0510 | F1 0.9638 | Acc 0.9644 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.051} | skipped 0
+2026-10-01 19:19:26,008 - INFO - Val   loss 1.0081 | F1 0.6588 | Acc 0.6623
+2026-10-01 19:19:26,008 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 19:19:26,008 - INFO - No improvement: 8/10
+2026-10-01 19:19:26,008 - INFO - ======================================================================
+2026-10-01 19:19:26,008 - INFO - Epoch 15/20
+2026-10-01 19:19:30,011 - INFO - Train loss 0.0399 | F1 0.9747 | Acc 0.9748 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.0399} | skipped 0
+2026-10-01 19:19:30,011 - INFO - Val   loss 1.0080 | F1 0.6843 | Acc 0.6883
+2026-10-01 19:19:30,011 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 19:19:30,011 - INFO - No improvement: 9/10
+2026-10-01 19:19:30,011 - INFO - ======================================================================
+2026-10-01 19:19:30,011 - INFO - Epoch 16/20
+2026-10-01 19:19:34,040 - INFO - Train loss 0.0387 | F1 0.9764 | Acc 0.9771 | parts {'aspect': 0.0, 'opinion': 0.0, 'polarity': 0.0387} | skipped 0
+2026-10-01 19:19:34,040 - INFO - Val   loss 1.0496 | F1 0.6837 | Acc 0.6883
+2026-10-01 19:19:34,040 - INFO - Task weights (normalised): {'aspect': 0.333, 'opinion': 0.333, 'polarity': 0.333} | sigma^2: {'aspect': 1.0, 'opinion': 1.0, 'polarity': 1.0}
+2026-10-01 19:19:34,040 - INFO - No improvement: 10/10
+2026-10-01 19:19:34,040 - INFO - Early stopping.
+2026-10-01 19:19:34,041 - INFO - Done. Best val macro-F1 0.7166 at epoch 6
+2026-10-01 19:19:34,324 - INFO - test: 267 instances | {'neutral': 137, 'negative': 54, 'positive': 76} | majority-class acc 0.513
+2026-10-01 19:19:34,599 - INFO - TEST (best ckpt, epoch 6): Acc 0.6816 | macro-F1 0.6730
+2026-10-01 19:19:34,600 - INFO - Confusion matrix (rows=gold, cols=pred; order ['positive', 'negative', 'neutral']):
+[[60  8  8]
+ [ 6 36 12]
+ [36 15 86]]
+[done] polonly_lr1e-4_s2 in 119s
+
+=================== [run] mtl_tawl_lr1e-4_s2   10/01/2026 19:19:35 ===================
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:441: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+2026-10-01 19:19:38,778 - INFO - Device: cuda | args: {'train_data': 'data/processed/restaurant14_train_implicit.json', 'aux_data': 'data/auxiliary/restaurant14_train_implicit_aux_qwen7b_full.json', 'val_data': None, 'test_data': 'data/processed/restaurant14_test_implicit.json', 'model_name': 'google/flan-t5-base', 'output_dir': 'models/exp_mtl_tawl_lr1e-4_s2', 'batch_size': 32, 'grad_accum': 1, 'eval_batch_size': 32, 'lr': 0.0001, 'awl_lr': 0.01, 'warmup_ratio': 0.06, 'num_epochs': 20, 'patience': 10, 'validation_fraction': 0.15, 'max_length': 128, 'd_awl_strategy': 'none', 't_awl_version': 'alf2', 'freeze_t_awl': False, 'conf_source': 'stored', 'drop_nonconverged': False, 'keep_unk_labels': False, 'polarity_only': False, 'bf16': True, 'seed': 2, 'num_workers': 0, 'max_instances': None}
+2026-10-01 19:19:38,782 - INFO - ---- auxiliary data diagnostics (1030 rows) ----
+2026-10-01 19:19:38,782 - INFO - converged: 840 (81.6%) | mean iterations: 2.22
+2026-10-01 19:19:38,782 - INFO - aspect == target: 1 (0.1%)
+2026-10-01 19:19:38,782 - INFO - aspect-conf values (top): [(0.9, 405), (0.8, 361), (0.95, 246), (0.85, 11), (0.5, 7)]
+2026-10-01 19:19:38,782 - INFO - opinion-conf values (top): [(0.8, 775), (0.9, 174), (0.7, 34), (0.85, 30), (0.95, 14), (0.75, 1)]
+2026-10-01 19:19:38,782 - INFO - most common opinions: [('neutral', 62), ('recommended', 13), ('informative', 10), ('indifferent', 9), ('high quality', 9), ('poor quality', 7), ('delicious', 7), ('highly recommended', 5)]
+2026-10-01 19:19:38,782 - INFO - ------------------------------------------------
+2026-10-01 19:19:38,782 - INFO - Train instances: 1030 | implicit+valid: 1030 | with aux: 1030
+2026-10-01 19:19:38,783 - INFO - train: 876 instances | {'negative': 218, 'neutral': 358, 'positive': 300} | majority-class acc 0.409
+2026-10-01 19:19:38,783 - INFO - val: 154 instances | {'negative': 38, 'positive': 53, 'neutral': 63} | majority-class acc 0.409
+2026-10-01 19:19:39,339 - INFO - Dropped train rows whose aux labels contain <unk> (non-English text): 876 -> 872
+2026-10-01 19:19:39,340 - INFO - [aspect] input : Given the sentence "It is obvious that no one in the restaurant has any idea about or experience with Japanese cuisine.", what is the mentioned aspect towards Japanese cuisine?
+2026-10-01 19:19:39,340 - INFO - [aspect] target: Lack of knowledge or experience
+2026-10-01 19:19:39,340 - INFO - [opinion] input : Given the sentence "It is obvious that no one in the restaurant has any idea about or experience with Japanese cuisine.", the mentioned aspect towards Japanese cuisine is "Lack of knowledge or experience". What is the underlying opinion towards Japanese cuisine?
+2026-10-01 19:19:39,340 - INFO - [opinion] target: Opinion: Negative
+2026-10-01 19:19:39,340 - INFO - [polarity] input : Given the sentence "It is obvious that no one in the restaurant has any idea about or experience with Japanese cuisine.", what is the sentiment polarity towards Japanese cuisine? Options: positive, negative, neutral.
+2026-10-01 19:19:39,340 - INFO - [polarity] target: negative
+2026-10-01 19:19:39,341 - INFO - [example confidences] aspect=0.90 opinion=0.90
+2026-10-01 19:19:41,185 - INFO - Polarity word positive  -> token ids [1465]
+2026-10-01 19:19:41,185 - INFO - Polarity word negative  -> token ids [2841]
+2026-10-01 19:19:41,185 - INFO - Polarity word neutral   -> token ids [7163]
+2026-10-01 19:19:41,185 - INFO - MT-ISA model: google/flan-t5-base | D-AWL=none | T-AWL=alf2
+2026-10-01 19:19:42,095 - INFO - Zero-shot Flan-T5 on val: loss 0.6657 | F1 0.4160 | Acc 0.4870
+2026-10-01 19:19:42,095 - INFO - ======================================================================
+2026-10-01 19:19:42,095 - INFO - Epoch 1/20
+2026-10-01 19:20:38,244 - INFO - Train loss 9.9936 | F1 0.4526 | Acc 0.4484 | parts {'aspect': 3.9122, 'opinion': 3.585, 'polarity': 0.6437} | skipped 0
+2026-10-01 19:20:38,244 - INFO - Val   loss 0.5006 | F1 0.4360 | Acc 0.5065
+2026-10-01 19:20:38,245 - INFO - Task weights (normalised): {'aspect': 0.327, 'opinion': 0.326, 'polarity': 0.346} | sigma^2: {'aspect': 1.142, 'opinion': 1.145, 'polarity': 1.079}
+2026-10-01 19:20:43,144 - INFO - New best (val macro-F1 0.4360) saved.
+2026-10-01 19:20:43,144 - INFO - ======================================================================
+2026-10-01 19:20:43,144 - INFO - Epoch 2/20
+2026-10-01 19:21:40,049 - INFO - Train loss 7.0945 | F1 0.5125 | Acc 0.5103 | parts {'aspect': 2.6453, 'opinion': 2.8517, 'polarity': 0.5053} | skipped 0
+2026-10-01 19:21:40,049 - INFO - Val   loss 0.4404 | F1 0.5020 | Acc 0.5195
+2026-10-01 19:21:40,049 - INFO - Task weights (normalised): {'aspect': 0.287, 'opinion': 0.281, 'polarity': 0.432} | sigma^2: {'aspect': 1.495, 'opinion': 1.525, 'polarity': 0.991}
+2026-10-01 19:21:44,981 - INFO - New best (val macro-F1 0.5020) saved.
+2026-10-01 19:21:44,981 - INFO - ======================================================================
+2026-10-01 19:21:44,981 - INFO - Epoch 3/20
+2026-10-01 19:22:39,705 - INFO - Train loss 5.9128 | F1 0.5538 | Acc 0.5482 | parts {'aspect': 2.2071, 'opinion': 2.4743, 'polarity': 0.4527} | skipped 0
+2026-10-01 19:22:39,705 - INFO - Val   loss 0.4299 | F1 0.5494 | Acc 0.5584
+2026-10-01 19:22:39,705 - INFO - Task weights (normalised): {'aspect': 0.255, 'opinion': 0.247, 'polarity': 0.498} | sigma^2: {'aspect': 1.808, 'opinion': 1.872, 'polarity': 0.928}
+2026-10-01 19:22:44,227 - INFO - New best (val macro-F1 0.5494) saved.
+2026-10-01 19:22:44,227 - INFO - ======================================================================
+2026-10-01 19:22:44,227 - INFO - Epoch 4/20
+2026-10-01 19:23:40,231 - INFO - Train loss 5.4019 | F1 0.6670 | Acc 0.6606 | parts {'aspect': 2.0091, 'opinion': 2.2787, 'polarity': 0.37} | skipped 0
+2026-10-01 19:23:40,231 - INFO - Val   loss 0.3999 | F1 0.6682 | Acc 0.6688
+2026-10-01 19:23:40,231 - INFO - Task weights (normalised): {'aspect': 0.22, 'opinion': 0.21, 'polarity': 0.57} | sigma^2: {'aspect': 2.054, 'opinion': 2.156, 'polarity': 0.794}
+2026-10-01 19:23:45,501 - INFO - New best (val macro-F1 0.6682) saved.
+2026-10-01 19:23:45,501 - INFO - ======================================================================
+2026-10-01 19:23:45,501 - INFO - Epoch 5/20
+2026-10-01 19:24:42,305 - INFO - Train loss 5.0912 | F1 0.7122 | Acc 0.7110 | parts {'aspect': 1.7928, 'opinion': 2.1309, 'polarity': 0.3172} | skipped 0
+2026-10-01 19:24:42,305 - INFO - Val   loss 0.4149 | F1 0.6988 | Acc 0.7013
+2026-10-01 19:24:42,305 - INFO - Task weights (normalised): {'aspect': 0.203, 'opinion': 0.189, 'polarity': 0.608} | sigma^2: {'aspect': 2.188, 'opinion': 2.341, 'polarity': 0.729}
+2026-10-01 19:24:46,318 - INFO - New best (val macro-F1 0.6988) saved.
+2026-10-01 19:24:46,318 - INFO - ======================================================================
+2026-10-01 19:24:46,318 - INFO - Epoch 6/20
+2026-10-01 19:25:42,005 - INFO - Train loss 4.9177 | F1 0.7609 | Acc 0.7592 | parts {'aspect': 1.7078, 'opinion': 2.0274, 'polarity': 0.2656} | skipped 0
+2026-10-01 19:25:42,006 - INFO - Val   loss 0.4511 | F1 0.6905 | Acc 0.7013
+2026-10-01 19:25:42,006 - INFO - Task weights (normalised): {'aspect': 0.187, 'opinion': 0.172, 'polarity': 0.641} | sigma^2: {'aspect': 2.253, 'opinion': 2.448, 'polarity': 0.657}
+2026-10-01 19:25:42,006 - INFO - No improvement: 1/10
+2026-10-01 19:25:42,006 - INFO - ======================================================================
+2026-10-01 19:25:42,006 - INFO - Epoch 7/20
+2026-10-01 19:26:35,679 - INFO - Train loss 4.7698 | F1 0.8293 | Acc 0.8291 | parts {'aspect': 1.6274, 'opinion': 1.9631, 'polarity': 0.2143} | skipped 0
+2026-10-01 19:26:35,679 - INFO - Val   loss 0.5245 | F1 0.6617 | Acc 0.6688
+2026-10-01 19:26:35,679 - INFO - Task weights (normalised): {'aspect': 0.174, 'opinion': 0.158, 'polarity': 0.668} | sigma^2: {'aspect': 2.278, 'opinion': 2.507, 'polarity': 0.592}
+2026-10-01 19:26:35,679 - INFO - No improvement: 2/10
+2026-10-01 19:26:35,679 - INFO - ======================================================================
+2026-10-01 19:26:35,679 - INFO - Epoch 8/20
+2026-10-01 19:27:30,860 - INFO - Train loss 4.6386 | F1 0.8497 | Acc 0.8498 | parts {'aspect': 1.5506, 'opinion': 1.8648, 'polarity': 0.183} | skipped 0
+2026-10-01 19:27:30,860 - INFO - Val   loss 0.5419 | F1 0.6842 | Acc 0.7013
+2026-10-01 19:27:30,860 - INFO - Task weights (normalised): {'aspect': 0.164, 'opinion': 0.148, 'polarity': 0.688} | sigma^2: {'aspect': 2.277, 'opinion': 2.528, 'polarity': 0.544}
+2026-10-01 19:27:30,860 - INFO - No improvement: 3/10
+2026-10-01 19:27:30,860 - INFO - ======================================================================
+2026-10-01 19:27:30,860 - INFO - Epoch 9/20
+2026-10-01 19:28:25,686 - INFO - Train loss 4.5382 | F1 0.8816 | Acc 0.8807 | parts {'aspect': 1.5111, 'opinion': 1.8475, 'polarity': 0.1446} | skipped 0
+2026-10-01 19:28:25,686 - INFO - Val   loss 0.6361 | F1 0.7181 | Acc 0.7208
+2026-10-01 19:28:25,686 - INFO - Task weights (normalised): {'aspect': 0.152, 'opinion': 0.136, 'polarity': 0.712} | sigma^2: {'aspect': 2.264, 'opinion': 2.535, 'polarity': 0.483}
+2026-10-01 19:28:35,076 - INFO - New best (val macro-F1 0.7181) saved.
+2026-10-01 19:28:35,076 - INFO - ======================================================================
+2026-10-01 19:28:35,076 - INFO - Epoch 10/20
+2026-10-01 19:29:29,569 - INFO - Train loss 4.4559 | F1 0.9013 | Acc 0.9002 | parts {'aspect': 1.4176, 'opinion': 1.8131, 'polarity': 0.1338} | skipped 0
+2026-10-01 19:29:29,570 - INFO - Val   loss 0.6574 | F1 0.6782 | Acc 0.6818
+2026-10-01 19:29:29,570 - INFO - Task weights (normalised): {'aspect': 0.144, 'opinion': 0.128, 'polarity': 0.728} | sigma^2: {'aspect': 2.24, 'opinion': 2.534, 'polarity': 0.444}
+2026-10-01 19:29:29,570 - INFO - No improvement: 1/10
+2026-10-01 19:29:29,570 - INFO - ======================================================================
+2026-10-01 19:29:29,570 - INFO - Epoch 11/20
+2026-10-01 19:30:25,506 - INFO - Train loss 4.2787 | F1 0.9440 | Acc 0.9438 | parts {'aspect': 1.391, 'opinion': 1.7447, 'polarity': 0.0762} | skipped 0
+2026-10-01 19:30:25,506 - INFO - Val   loss 0.7479 | F1 0.7112 | Acc 0.7143
+2026-10-01 19:30:25,506 - INFO - Task weights (normalised): {'aspect': 0.133, 'opinion': 0.116, 'polarity': 0.751} | sigma^2: {'aspect': 2.21, 'opinion': 2.523, 'polarity': 0.391}
+2026-10-01 19:30:25,506 - INFO - No improvement: 2/10
+2026-10-01 19:30:25,506 - INFO - ======================================================================
+2026-10-01 19:30:25,506 - INFO - Epoch 12/20
+2026-10-01 19:31:20,757 - INFO - Train loss 4.2138 | F1 0.9482 | Acc 0.9484 | parts {'aspect': 1.3281, 'opinion': 1.7115, 'polarity': 0.0721} | skipped 0
+2026-10-01 19:31:20,757 - INFO - Val   loss 0.8716 | F1 0.6987 | Acc 0.7013
+2026-10-01 19:31:20,757 - INFO - Task weights (normalised): {'aspect': 0.123, 'opinion': 0.107, 'polarity': 0.77} | sigma^2: {'aspect': 2.186, 'opinion': 2.508, 'polarity': 0.35}
+2026-10-01 19:31:20,757 - INFO - No improvement: 3/10
+2026-10-01 19:31:20,757 - INFO - ======================================================================
+2026-10-01 19:31:20,757 - INFO - Epoch 13/20
+2026-10-01 19:32:15,819 - INFO - Train loss 4.1734 | F1 0.9485 | Acc 0.9495 | parts {'aspect': 1.3089, 'opinion': 1.6694, 'polarity': 0.0693} | skipped 0
+2026-10-01 19:32:15,819 - INFO - Val   loss 0.8975 | F1 0.6991 | Acc 0.7013
+2026-10-01 19:32:15,819 - INFO - Task weights (normalised): {'aspect': 0.118, 'opinion': 0.102, 'polarity': 0.779} | sigma^2: {'aspect': 2.157, 'opinion': 2.491, 'polarity': 0.327}
+2026-10-01 19:32:15,819 - INFO - No improvement: 4/10
+2026-10-01 19:32:15,819 - INFO - ======================================================================
+2026-10-01 19:32:15,819 - INFO - Epoch 14/20
+2026-10-01 19:33:09,688 - INFO - Train loss 4.1555 | F1 0.9579 | Acc 0.9576 | parts {'aspect': 1.2812, 'opinion': 1.6752, 'polarity': 0.0677} | skipped 0
+2026-10-01 19:33:09,688 - INFO - Val   loss 0.9348 | F1 0.6849 | Acc 0.6883
+2026-10-01 19:33:09,688 - INFO - Task weights (normalised): {'aspect': 0.114, 'opinion': 0.098, 'polarity': 0.788} | sigma^2: {'aspect': 2.134, 'opinion': 2.479, 'polarity': 0.308}
+2026-10-01 19:33:09,688 - INFO - No improvement: 5/10
+2026-10-01 19:33:09,688 - INFO - ======================================================================
+2026-10-01 19:33:09,688 - INFO - Epoch 15/20
+2026-10-01 19:34:04,414 - INFO - Train loss 4.1162 | F1 0.9536 | Acc 0.9530 | parts {'aspect': 1.236, 'opinion': 1.6381, 'polarity': 0.0675} | skipped 0
+2026-10-01 19:34:04,414 - INFO - Val   loss 0.8755 | F1 0.7226 | Acc 0.7273
+2026-10-01 19:34:04,414 - INFO - Task weights (normalised): {'aspect': 0.112, 'opinion': 0.096, 'polarity': 0.792} | sigma^2: {'aspect': 2.114, 'opinion': 2.467, 'polarity': 0.299}
+2026-10-01 19:34:10,000 - INFO - New best (val macro-F1 0.7226) saved.
+2026-10-01 19:34:10,000 - INFO - ======================================================================
+2026-10-01 19:34:10,000 - INFO - Epoch 16/20
+2026-10-01 19:35:03,859 - INFO - Train loss 4.0621 | F1 0.9676 | Acc 0.9679 | parts {'aspect': 1.2324, 'opinion': 1.6327, 'polarity': 0.0532} | skipped 0
+2026-10-01 19:35:03,859 - INFO - Val   loss 0.9746 | F1 0.6910 | Acc 0.6948
+2026-10-01 19:35:03,859 - INFO - Task weights (normalised): {'aspect': 0.109, 'opinion': 0.093, 'polarity': 0.798} | sigma^2: {'aspect': 2.092, 'opinion': 2.456, 'polarity': 0.285}
+2026-10-01 19:35:03,859 - INFO - No improvement: 1/10
+2026-10-01 19:35:03,859 - INFO - ======================================================================
+2026-10-01 19:35:03,859 - INFO - Epoch 17/20
+2026-10-01 19:35:59,113 - INFO - Train loss 4.0077 | F1 0.9626 | Acc 0.9622 | parts {'aspect': 1.2184, 'opinion': 1.612, 'polarity': 0.0429} | skipped 0
+2026-10-01 19:35:59,113 - INFO - Val   loss 1.0278 | F1 0.6901 | Acc 0.6948
+2026-10-01 19:35:59,113 - INFO - Task weights (normalised): {'aspect': 0.107, 'opinion': 0.091, 'polarity': 0.802} | sigma^2: {'aspect': 2.077, 'opinion': 2.448, 'polarity': 0.277}
+2026-10-01 19:35:59,113 - INFO - No improvement: 2/10
+2026-10-01 19:35:59,113 - INFO - ======================================================================
+2026-10-01 19:35:59,113 - INFO - Epoch 18/20
+2026-10-01 19:36:55,850 - INFO - Train loss 3.9984 | F1 0.9638 | Acc 0.9644 | parts {'aspect': 1.1889, 'opinion': 1.6014, 'polarity': 0.0461} | skipped 0
+2026-10-01 19:36:55,850 - INFO - Val   loss 0.9683 | F1 0.6929 | Acc 0.7013
+2026-10-01 19:36:55,850 - INFO - Task weights (normalised): {'aspect': 0.106, 'opinion': 0.089, 'polarity': 0.805} | sigma^2: {'aspect': 2.065, 'opinion': 2.44, 'polarity': 0.271}
+2026-10-01 19:36:55,850 - INFO - No improvement: 3/10
+2026-10-01 19:36:55,850 - INFO - ======================================================================
+2026-10-01 19:36:55,850 - INFO - Epoch 19/20
+2026-10-01 19:37:50,589 - INFO - Train loss 3.9139 | F1 0.9720 | Acc 0.9725 | parts {'aspect': 1.1578, 'opinion': 1.5882, 'polarity': 0.0294} | skipped 0
+2026-10-01 19:37:50,589 - INFO - Val   loss 1.0214 | F1 0.6890 | Acc 0.6948
+2026-10-01 19:37:50,589 - INFO - Task weights (normalised): {'aspect': 0.104, 'opinion': 0.088, 'polarity': 0.807} | sigma^2: {'aspect': 2.055, 'opinion': 2.434, 'polarity': 0.266}
+2026-10-01 19:37:50,589 - INFO - No improvement: 4/10
+2026-10-01 19:37:50,589 - INFO - ======================================================================
+2026-10-01 19:37:50,589 - INFO - Epoch 20/20
+2026-10-01 19:38:46,957 - INFO - Train loss 3.9622 | F1 0.9644 | Acc 0.9644 | parts {'aspect': 1.1797, 'opinion': 1.5927, 'polarity': 0.0393} | skipped 0
+2026-10-01 19:38:46,957 - INFO - Val   loss 1.0140 | F1 0.7024 | Acc 0.7078
+2026-10-01 19:38:46,957 - INFO - Task weights (normalised): {'aspect': 0.104, 'opinion': 0.088, 'polarity': 0.808} | sigma^2: {'aspect': 2.052, 'opinion': 2.432, 'polarity': 0.264}
+2026-10-01 19:38:46,958 - INFO - No improvement: 5/10
+2026-10-01 19:38:46,959 - INFO - Done. Best val macro-F1 0.7226 at epoch 15
+2026-10-01 19:38:47,244 - INFO - test: 267 instances | {'neutral': 137, 'negative': 54, 'positive': 76} | majority-class acc 0.513
+2026-10-01 19:38:47,867 - INFO - TEST (best ckpt, epoch 15): Acc 0.6067 | macro-F1 0.6004
+2026-10-01 19:38:47,868 - INFO - Confusion matrix (rows=gold, cols=pred; order ['positive', 'negative', 'neutral']):
+[[63  7  6]
+ [ 9 31 14]
+ [51 18 68]]
+[done] mtl_tawl_lr1e-4_s2 in 1,154s
+
+=================== [run] in_conv_lr1e-4_s2   10/01/2026 19:38:48 ===================
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:441: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+D:\Asrith\MT-ISA\venv\Lib\site-packages\transformers\utils\generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+2026-10-01 19:38:52,408 - INFO - Device: cuda | args: {'train_data': 'data/processed/restaurant14_train_implicit.json', 'aux_data': 'data/auxiliary/restaurant14_train_implicit_aux_qwen7b_full.json', 'val_data': None, 'test_data': 'data/processed/restaurant14_test_implicit.json', 'model_name': 'google/flan-t5-base', 'output_dir': 'models/exp_in_conv_lr1e-4_s2', 'batch_size': 32, 'grad_accum': 1, 'eval_batch_size': 32, 'lr': 0.0001, 'awl_lr': 0.01, 'warmup_ratio': 0.06, 'num_epochs': 20, 'patience': 10, 'validation_fraction': 0.15, 'max_length': 128, 'd_awl_strategy': 'input', 't_awl_version': 'alf2', 'freeze_t_awl': False, 'conf_source': 'convergence', 'drop_nonconverged': False, 'keep_unk_labels': False, 'polarity_only': False, 'bf16': True, 'seed': 2, 'num_workers': 0, 'max_instances': None}
+2026-10-01 19:38:52,412 - INFO - ---- auxiliary data diagnostics (1030 rows) ----
+2026-10-01 19:38:52,412 - INFO - converged: 840 (81.6%) | mean iterations: 2.22
+2026-10-01 19:38:52,412 - INFO - aspect == target: 1 (0.1%)
+2026-10-01 19:38:52,412 - INFO - aspect-conf values (top): [(0.9, 405), (0.8, 361), (0.95, 246), (0.85, 11), (0.5, 7)]
+2026-10-01 19:38:52,412 - INFO - opinion-conf values (top): [(0.8, 775), (0.9, 174), (0.7, 34), (0.85, 30), (0.95, 14), (0.75, 1)]
+2026-10-01 19:38:52,412 - INFO - most common opinions: [('neutral', 62), ('recommended', 13), ('informative', 10), ('indifferent', 9), ('high quality', 9), ('poor quality', 7), ('delicious', 7), ('highly recommended', 5)]
+2026-10-01 19:38:52,412 - INFO - ------------------------------------------------
+2026-10-01 19:38:52,413 - INFO - Train instances: 1030 | implicit+valid: 1030 | with aux: 1030
+2026-10-01 19:38:52,413 - INFO - train: 876 instances | {'negative': 218, 'neutral': 358, 'positive': 300} | majority-class acc 0.409
+2026-10-01 19:38:52,413 - INFO - val: 154 instances | {'negative': 38, 'positive': 53, 'neutral': 63} | majority-class acc 0.409
+2026-10-01 19:38:52,986 - INFO - Dropped train rows whose aux labels contain <unk> (non-English text): 876 -> 872
+2026-10-01 19:38:52,987 - INFO - [aspect] input : Given the sentence "It is obvious that no one in the restaurant has any idea about or experience with Japanese cuisine.", what is the mentioned aspect towards Japanese cuisine?
+2026-10-01 19:38:52,987 - INFO - [aspect] target: Lack of knowledge or experience
+2026-10-01 19:38:52,987 - INFO - [opinion] input : Given the sentence "It is obvious that no one in the restaurant has any idea about or experience with Japanese cuisine.", the mentioned aspect towards Japanese cuisine is "Lack of knowledge or experience". What is the underlying opinion towards Japanese cuisine?
+2026-10-01 19:38:52,987 - INFO - [opinion] target: Opinion: Negative
+2026-10-01 19:38:52,987 - INFO - [polarity] input : Given the sentence "It is obvious that no one in the restaurant has any idea about or experience with Japanese cuisine.", what is the sentiment polarity towards Japanese cuisine? Options: positive, negative, neutral.
+2026-10-01 19:38:52,987 - INFO - [polarity] target: negative
+2026-10-01 19:38:52,988 - INFO - [example confidences] aspect=1.00 opinion=1.00
+2026-10-01 19:38:54,838 - INFO - Polarity word positive  -> token ids [1465]
+2026-10-01 19:38:54,838 - INFO - Polarity word negative  -> token ids [2841]
+2026-10-01 19:38:54,838 - INFO - Polarity word neutral   -> token ids [7163]
+2026-10-01 19:38:54,838 - INFO - MT-ISA model: google/flan-t5-base | D-AWL=input | T-AWL=alf2
+2026-10-01 19:38:55,808 - INFO - Zero-shot Flan-T5 on val: loss 0.6657 | F1 0.4160 | Acc 0.4870
+2026-10-01 19:38:55,808 - INFO - ======================================================================
+2026-10-01 19:38:55,808 - INFO - Epoch 1/20
+2026-10-01 19:39:51,670 - INFO - Train loss 10.0626 | F1 0.4483 | Acc 0.4438 | parts {'aspect': 3.9598, 'opinion': 3.6087, 'polarity': 0.6447} | skipped 0
+2026-10-01 19:39:51,671 - INFO - Val   loss 0.4987 | F1 0.4410 | Acc 0.5065
+2026-10-01 19:39:51,671 - INFO - Task weights (normalised): {'aspect': 0.327, 'opinion': 0.327, 'polarity': 0.346} | sigma^2: {'aspect': 1.142, 'opinion': 1.145, 'polarity': 1.081}
+2026-10-01 19:39:57,117 - INFO - New best (val macro-F1 0.4410) saved.
+2026-10-01 19:39:57,117 - INFO - ======================================================================
+2026-10-01 19:39:57,117 - INFO - Epoch 2/20
+2026-10-01 19:40:53,714 - INFO - Train loss 7.1353 | F1 0.5106 | Acc 0.5080 | parts {'aspect': 2.6729, 'opinion': 2.8843, 'polarity': 0.5069} | skipped 0
+2026-10-01 19:40:53,714 - INFO - Val   loss 0.4436 | F1 0.4946 | Acc 0.5130
+2026-10-01 19:40:53,714 - INFO - Task weights (normalised): {'aspect': 0.286, 'opinion': 0.28, 'polarity': 0.433} | sigma^2: {'aspect': 1.501, 'opinion': 1.533, 'polarity': 0.992}
+2026-10-01 19:40:58,172 - INFO - New best (val macro-F1 0.4946) saved.
+2026-10-01 19:40:58,172 - INFO - ======================================================================
+2026-10-01 19:40:58,172 - INFO - Epoch 3/20
+2026-10-01 19:41:51,790 - INFO - Train loss 5.9328 | F1 0.5403 | Acc 0.5344 | parts {'aspect': 2.2306, 'opinion': 2.4964, 'polarity': 0.456} | skipped 0
+2026-10-01 19:41:51,790 - INFO - Val   loss 0.4277 | F1 0.5599 | Acc 0.5649
+2026-10-01 19:41:51,790 - INFO - Task weights (normalised): {'aspect': 0.255, 'opinion': 0.246, 'polarity': 0.499} | sigma^2: {'aspect': 1.824, 'opinion': 1.89, 'polarity': 0.932}
+2026-10-01 19:41:57,809 - INFO - New best (val macro-F1 0.5599) saved.
+2026-10-01 19:41:57,809 - INFO - ======================================================================
+2026-10-01 19:41:57,809 - INFO - Epoch 4/20
+2026-10-01 19:42:53,581 - INFO - Train loss 5.4143 | F1 0.6579 | Acc 0.6514 | parts {'aspect': 2.0271, 'opinion': 2.2916, 'polarity': 0.3734} | skipped 0
+2026-10-01 19:42:53,581 - INFO - Val   loss 0.3965 | F1 0.6655 | Acc 0.6688
+2026-10-01 19:42:53,581 - INFO - Task weights (normalised): {'aspect': 0.22, 'opinion': 0.21, 'polarity': 0.57} | sigma^2: {'aspect': 2.071, 'opinion': 2.174, 'polarity': 0.799}
+2026-10-01 19:43:12,545 - INFO - New best (val macro-F1 0.6655) saved.
+2026-10-01 19:43:12,545 - INFO - ======================================================================
+2026-10-01 19:43:12,546 - INFO - Epoch 5/20
+2026-10-01 19:44:09,373 - INFO - Train loss 5.1130 | F1 0.7043 | Acc 0.7030 | parts {'aspect': 1.809, 'opinion': 2.1474, 'polarity': 0.3251} | skipped 0
+2026-10-01 19:44:09,373 - INFO - Val   loss 0.4096 | F1 0.6922 | Acc 0.6948
+2026-10-01 19:44:09,373 - INFO - Task weights (normalised): {'aspect': 0.203, 'opinion': 0.19, 'polarity': 0.607} | sigma^2: {'aspect': 2.209, 'opinion': 2.362, 'polarity': 0.738}
+2026-10-01 19:44:14,484 - INFO - New best (val macro-F1 0.6922) saved.
+2026-10-01 19:44:14,484 - INFO - ======================================================================
+2026-10-01 19:44:14,484 - INFO - Epoch 6/20
+2026-10-01 19:45:12,694 - INFO - Train loss 4.9330 | F1 0.7620 | Acc 0.7603 | parts {'aspect': 1.7195, 'opinion': 2.038, 'polarity': 0.2708} | skipped 0
+2026-10-01 19:45:12,694 - INFO - Val   loss 0.4453 | F1 0.6821 | Acc 0.6948
+2026-10-01 19:45:12,694 - INFO - Task weights (normalised): {'aspect': 0.188, 'opinion': 0.173, 'polarity': 0.64} | sigma^2: {'aspect': 2.276, 'opinion': 2.471, 'polarity': 0.667}
+2026-10-01 19:45:12,694 - INFO - No improvement: 1/10
+2026-10-01 19:45:12,694 - INFO - ======================================================================
+2026-10-01 19:45:12,694 - INFO - Epoch 7/20
+2026-10-01 19:46:06,986 - INFO - Train loss 4.7850 | F1 0.8179 | Acc 0.8177 | parts {'aspect': 1.6397, 'opinion': 1.9712, 'polarity': 0.2187} | skipped 0
+2026-10-01 19:46:06,986 - INFO - Val   loss 0.5204 | F1 0.6608 | Acc 0.6688
+2026-10-01 19:46:06,986 - INFO - Task weights (normalised): {'aspect': 0.174, 'opinion': 0.158, 'polarity': 0.667} | sigma^2: {'aspect': 2.299, 'opinion': 2.529, 'polarity': 0.6}
+2026-10-01 19:46:06,986 - INFO - No improvement: 2/10
+2026-10-01 19:46:06,986 - INFO - ======================================================================
+2026-10-01 19:46:06,986 - INFO - Epoch 8/20
+2026-10-01 19:47:03,316 - INFO - Train loss 4.6578 | F1 0.8444 | Acc 0.8440 | parts {'aspect': 1.5552, 'opinion': 1.882, 'polarity': 0.1887} | skipped 0
+2026-10-01 19:47:03,316 - INFO - Val   loss 0.5193 | F1 0.6874 | Acc 0.7013
+2026-10-01 19:47:03,316 - INFO - Task weights (normalised): {'aspect': 0.165, 'opinion': 0.149, 'polarity': 0.686} | sigma^2: {'aspect': 2.296, 'opinion': 2.55, 'polarity': 0.553}
+2026-10-01 19:47:03,316 - INFO - No improvement: 3/10
+2026-10-01 19:47:03,316 - INFO - ======================================================================
+2026-10-01 19:47:03,316 - INFO - Epoch 9/20
+2026-10-01 19:47:59,075 - INFO - Train loss 4.5546 | F1 0.8741 | Acc 0.8739 | parts {'aspect': 1.5164, 'opinion': 1.865, 'polarity': 0.1478} | skipped 0
+2026-10-01 19:47:59,075 - INFO - Val   loss 0.6127 | F1 0.7181 | Acc 0.7208
+2026-10-01 19:47:59,075 - INFO - Task weights (normalised): {'aspect': 0.153, 'opinion': 0.137, 'polarity': 0.71} | sigma^2: {'aspect': 2.279, 'opinion': 2.556, 'polarity': 0.492}
+2026-10-01 19:48:04,618 - INFO - New best (val macro-F1 0.7181) saved.
+2026-10-01 19:48:04,618 - INFO - ======================================================================
+2026-10-01 19:48:04,619 - INFO - Epoch 10/20
+2026-10-01 19:49:00,445 - INFO - Train loss 4.4656 | F1 0.8935 | Acc 0.8922 | parts {'aspect': 1.431, 'opinion': 1.8134, 'polarity': 0.135} | skipped 0
+2026-10-01 19:49:00,445 - INFO - Val   loss 0.6115 | F1 0.7090 | Acc 0.7143
+2026-10-01 19:49:00,445 - INFO - Task weights (normalised): {'aspect': 0.145, 'opinion': 0.128, 'polarity': 0.727} | sigma^2: {'aspect': 2.254, 'opinion': 2.552, 'polarity': 0.449}
+2026-10-01 19:49:00,445 - INFO - No improvement: 1/10
+2026-10-01 19:49:00,446 - INFO - ======================================================================
+2026-10-01 19:49:00,446 - INFO - Epoch 11/20
+2026-10-01 19:49:57,196 - INFO - Train loss 4.2891 | F1 0.9451 | Acc 0.9461 | parts {'aspect': 1.3945, 'opinion': 1.75, 'polarity': 0.0784} | skipped 0
+2026-10-01 19:49:57,196 - INFO - Val   loss 0.7211 | F1 0.7259 | Acc 0.7273
+2026-10-01 19:49:57,197 - INFO - Task weights (normalised): {'aspect': 0.134, 'opinion': 0.117, 'polarity': 0.749} | sigma^2: {'aspect': 2.221, 'opinion': 2.538, 'polarity': 0.396}
+2026-10-01 19:50:20,683 - INFO - New best (val macro-F1 0.7259) saved.
+2026-10-01 19:50:20,683 - INFO - ======================================================================
+2026-10-01 19:50:20,683 - INFO - Epoch 12/20
+2026-10-01 19:51:15,905 - INFO - Train loss 4.2300 | F1 0.9493 | Acc 0.9495 | parts {'aspect': 1.3373, 'opinion': 1.716, 'polarity': 0.0753} | skipped 0
+2026-10-01 19:51:15,905 - INFO - Val   loss 0.8257 | F1 0.7196 | Acc 0.7208
+2026-10-01 19:51:15,905 - INFO - Task weights (normalised): {'aspect': 0.124, 'opinion': 0.108, 'polarity': 0.768} | sigma^2: {'aspect': 2.195, 'opinion': 2.523, 'polarity': 0.356}
+2026-10-01 19:51:15,905 - INFO - No improvement: 1/10
+2026-10-01 19:51:15,905 - INFO - ======================================================================
+2026-10-01 19:51:15,905 - INFO - Epoch 13/20
+2026-10-01 19:52:10,689 - INFO - Train loss 4.1732 | F1 0.9506 | Acc 0.9507 | parts {'aspect': 1.3147, 'opinion': 1.6821, 'polarity': 0.0661} | skipped 0
+2026-10-01 19:52:10,689 - INFO - Val   loss 0.8844 | F1 0.6913 | Acc 0.6948
+2026-10-01 19:52:10,689 - INFO - Task weights (normalised): {'aspect': 0.119, 'opinion': 0.103, 'polarity': 0.779} | sigma^2: {'aspect': 2.164, 'opinion': 2.504, 'polarity': 0.33}
+2026-10-01 19:52:10,689 - INFO - No improvement: 2/10
+2026-10-01 19:52:10,689 - INFO - ======================================================================
+2026-10-01 19:52:10,689 - INFO - Epoch 14/20
+2026-10-01 19:53:03,892 - INFO - Train loss 4.1519 | F1 0.9601 | Acc 0.9599 | parts {'aspect': 1.2921, 'opinion': 1.6795, 'polarity': 0.0642} | skipped 0
+2026-10-01 19:53:03,892 - INFO - Val   loss 0.9103 | F1 0.6986 | Acc 0.7013
+2026-10-01 19:53:03,893 - INFO - Task weights (normalised): {'aspect': 0.114, 'opinion': 0.098, 'polarity': 0.787} | sigma^2: {'aspect': 2.14, 'opinion': 2.492, 'polarity': 0.311}
+2026-10-01 19:53:03,893 - INFO - No improvement: 3/10
+2026-10-01 19:53:03,893 - INFO - ======================================================================
+2026-10-01 19:53:03,893 - INFO - Epoch 15/20
+2026-10-01 19:53:58,361 - INFO - Train loss 4.1251 | F1 0.9500 | Acc 0.9495 | parts {'aspect': 1.2449, 'opinion': 1.6447, 'polarity': 0.0679} | skipped 0
+2026-10-01 19:53:58,361 - INFO - Val   loss 0.8369 | F1 0.7207 | Acc 0.7273
+2026-10-01 19:53:58,361 - INFO - Task weights (normalised): {'aspect': 0.113, 'opinion': 0.096, 'polarity': 0.791} | sigma^2: {'aspect': 2.121, 'opinion': 2.48, 'polarity': 0.302}
+2026-10-01 19:53:58,361 - INFO - No improvement: 4/10
+2026-10-01 19:53:58,361 - INFO - ======================================================================
+2026-10-01 19:53:58,361 - INFO - Epoch 16/20
+2026-10-01 19:54:52,447 - INFO - Train loss 4.0566 | F1 0.9630 | Acc 0.9633 | parts {'aspect': 1.228, 'opinion': 1.6404, 'polarity': 0.051} | skipped 0
+2026-10-01 19:54:52,447 - INFO - Val   loss 0.9412 | F1 0.7048 | Acc 0.7078
+2026-10-01 19:54:52,447 - INFO - Task weights (normalised): {'aspect': 0.109, 'opinion': 0.093, 'polarity': 0.798} | sigma^2: {'aspect': 2.098, 'opinion': 2.468, 'polarity': 0.288}
+2026-10-01 19:54:52,447 - INFO - No improvement: 5/10
+2026-10-01 19:54:52,447 - INFO - ======================================================================
+2026-10-01 19:54:52,447 - INFO - Epoch 17/20
+2026-10-01 19:55:46,451 - INFO - Train loss 4.0340 | F1 0.9650 | Acc 0.9644 | parts {'aspect': 1.2374, 'opinion': 1.6274, 'polarity': 0.0457} | skipped 0
+2026-10-01 19:55:46,451 - INFO - Val   loss 0.9581 | F1 0.7007 | Acc 0.7078
+2026-10-01 19:55:46,451 - INFO - Task weights (normalised): {'aspect': 0.108, 'opinion': 0.091, 'polarity': 0.801} | sigma^2: {'aspect': 2.083, 'opinion': 2.46, 'polarity': 0.28}
+2026-10-01 19:55:46,451 - INFO - No improvement: 6/10
+2026-10-01 19:55:46,451 - INFO - ======================================================================
+2026-10-01 19:55:46,451 - INFO - Epoch 18/20
+2026-10-01 19:56:43,085 - INFO - Train loss 4.0034 | F1 0.9686 | Acc 0.9690 | parts {'aspect': 1.1968, 'opinion': 1.6051, 'polarity': 0.0458} | skipped 0
+2026-10-01 19:56:43,085 - INFO - Val   loss 0.9245 | F1 0.6919 | Acc 0.7013
+2026-10-01 19:56:43,085 - INFO - Task weights (normalised): {'aspect': 0.106, 'opinion': 0.09, 'polarity': 0.804} | sigma^2: {'aspect': 2.07, 'opinion': 2.452, 'polarity': 0.273}
+2026-10-01 19:56:43,085 - INFO - No improvement: 7/10
+2026-10-01 19:56:43,085 - INFO - ======================================================================
+2026-10-01 19:56:43,085 - INFO - Epoch 19/20
+2026-10-01 19:57:37,031 - INFO - Train loss 3.9251 | F1 0.9737 | Acc 0.9736 | parts {'aspect': 1.1604, 'opinion': 1.5957, 'polarity': 0.0308} | skipped 0
+2026-10-01 19:57:37,031 - INFO - Val   loss 0.9806 | F1 0.7007 | Acc 0.7078
+2026-10-01 19:57:37,031 - INFO - Task weights (normalised): {'aspect': 0.105, 'opinion': 0.088, 'polarity': 0.807} | sigma^2: {'aspect': 2.06, 'opinion': 2.445, 'polarity': 0.268}
+2026-10-01 19:57:37,031 - INFO - No improvement: 8/10
+2026-10-01 19:57:37,031 - INFO - ======================================================================
+2026-10-01 19:57:37,031 - INFO - Epoch 20/20
+2026-10-01 19:58:32,748 - INFO - Train loss 3.9740 | F1 0.9660 | Acc 0.9656 | parts {'aspect': 1.179, 'opinion': 1.6056, 'polarity': 0.0409} | skipped 0
+2026-10-01 19:58:32,748 - INFO - Val   loss 0.9746 | F1 0.6955 | Acc 0.7013
+2026-10-01 19:58:32,748 - INFO - Task weights (normalised): {'aspect': 0.105, 'opinion': 0.088, 'polarity': 0.808} | sigma^2: {'aspect': 2.057, 'opinion': 2.443, 'polarity': 0.266}
+2026-10-01 19:58:32,748 - INFO - No improvement: 9/10
+2026-10-01 19:58:32,749 - INFO - Done. Best val macro-F1 0.7259 at epoch 11
+2026-10-01 19:58:33,031 - INFO - test: 267 instances | {'neutral': 137, 'negative': 54, 'positive': 76} | majority-class acc 0.513
+2026-10-01 19:58:33,752 - INFO - TEST (best ckpt, epoch 11): Acc 0.6629 | macro-F1 0.6568
+2026-10-01 19:58:33,753 - INFO - Confusion matrix (rows=gold, cols=pred; order ['positive', 'negative', 'neutral']):
+[[63  9  4]
+ [ 8 37  9]
+ [41 19 77]]
+[done] in_conv_lr1e-4_s2 in 1,186s
+
+=================== SUMMARY ===================
+
+
+Total time: 93 min
+Send me: results\summary.txt  (and results\bundle.zip for the full logs)
+**********************
+Windows PowerShell transcript end
+End time: 20261001195836
+**********************
