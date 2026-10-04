@@ -244,8 +244,12 @@ class MTISAModel(nn.Module):
         outputs["aspect_loss"] = aspect_loss
         outputs["opinion_loss"] = opinion_loss
 
-        # ---- task-level AWL ----
-        outputs["combined_loss"] = self.t_awl((aspect_loss, opinion_loss, polarity_loss))
+        # ---- fixed-weight ablation (skips T-AWL) or task-level AWL ----
+        aux_weight = getattr(self, "aux_weight", None)
+        if aux_weight is not None:
+            outputs["combined_loss"] = polarity_loss + aux_weight * (aspect_loss + opinion_loss)
+        else:
+            outputs["combined_loss"] = self.t_awl((aspect_loss, opinion_loss, polarity_loss))
         return outputs
 
     # ------------------------------------------------------------- inference

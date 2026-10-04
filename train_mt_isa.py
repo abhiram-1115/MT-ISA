@@ -168,11 +168,13 @@ class MTISADataset(Dataset):
         conf_source: str = "stored",
         max_length: int = 128,
         label_max_length: int = 64,
+        conf_override: Optional[Dict[str, Dict[str, float]]] = None,
     ):
         self.instances = instances
         self.tok = tokenizer
         self.aux_by_id = aux_by_id
         self.conf_source = conf_source
+        self.conf_override = conf_override  # id -> {"aspect_confidence", "opinion_confidence"}
         self.max_length = max_length
         self.label_max_length = label_max_length
 
@@ -182,7 +184,9 @@ class MTISADataset(Dataset):
     def _enc(self, text: str, max_len: int) -> List[int]:
         return self.tok(text, max_length=max_len, truncation=True).input_ids  # ends with </s>
 
-    def _conf(self, aux: Dict, key: str) -> float:
+    def _conf(self, aux: Dict, key: str, inst_id: str = None) -> float:
+        if self.conf_override is not None:
+            return self.conf_override[inst_id][key]
         if self.conf_source == "none":
             return 1.0
         if self.conf_source == "convergence":
@@ -208,11 +212,11 @@ class MTISADataset(Dataset):
             item.update({
                 "aspect_input_ids": self._enc(aspect_prompt(sentence, target), self.max_length),
                 "aspect_labels": self._enc(aspect_text, self.label_max_length),
-                "aspect_confidence": self._conf(aux, "aspect_confidence"),
+                "aspect_confidence": self._conf(aux, "aspect_confidence", inst["id"]),
                 "opinion_input_ids": self._enc(
                     opinion_prompt(sentence, target, aspect_text), self.max_length),
                 "opinion_labels": self._enc(opinion_text, self.label_max_length),
-                "opinion_confidence": self._conf(aux, "opinion_confidence"),
+                "opinion_confidence": self._conf(aux, "opinion_confidence", inst["id"]),
             })
         return item
 
@@ -384,9 +388,15 @@ def main():
     ap.add_argument("--freeze-t-awl", action="store_true",
                     help="Keep sigma^2=1 for all tasks (plain equal-weight MTL ablation).")
     ap.add_argument("--conf-source", default="stored",
-                    choices=["stored", "convergence", "none"],
+                    choices=["stored", "convergence", "none", "shuffle", "constant"],
                     help="stored = confidences in the aux JSON; convergence = derived from "
-                         "converged/refinement_iterations; none = all 1.0")
+                         "converged/refinement_iterations; none = all 1.0; shuffle = stored "
+                         "confidences permuted across train instances (uses --seed); "
+                         "constant = --const-conf for every instance")
+    ap.add_argument("--const-conf", type=float, default=0.9,
+                    help="value used by --conf-source constant")
+    ap.add_argument("--aux-weight", type=float, default=None,
+                    help="Skip T-AWL: loss = polarity + W * (aspect + opinion).")
     ap.add_argument("--drop-nonconverged", action="store_true",
                     help="Remove non-converged aux rows from the TRAIN split only.")
 
@@ -455,9 +465,27 @@ def main():
                     before, len(train_instances))
     collate = make_collate(tokenizer.pad_token_id)
 
+    conf_override = None
+    if args.conf_source in ("shuffle", "constant") and not args.polarity_only:
+        ids_ = [x["id"] for x in train_instances]
+        stored = [(clean_conf(aux_by_id[i].get("aspect_confidence")),
+                   clean_conf(aux_by_id[i].get("opinion_confidence"))) for i in ids_]
+        if args.conf_source == "shuffle":
+            # one permutation for both tasks: marginals preserved, link to instance broken
+            perm = np.random.RandomState(args.seed).permutation(len(ids_))
+            used = [stored[j] for j in perm]
+        else:
+            c = clean_conf(args.const_conf)
+            used = [(c, c)] * len(ids_)
+        conf_override = {i: {"aspect_confidence": a, "opinion_confidence": o}
+                         for i, (a, o) in zip(ids_, used)}
+        for k in range(min(5, len(ids_))):
+            logger.info("[%s conf] %s stored(a,o)=(%.2f,%.2f) -> used(a,o)=(%.2f,%.2f)",
+                        args.conf_source, ids_[k], *stored[k], *used[k])
+
     train_ds = MTISADataset(train_instances, tokenizer,
                             None if args.polarity_only else aux_by_id,
-                            args.conf_source, args.max_length)
+                            args.conf_source, args.max_length, conf_override=conf_override)
     val_ds = MTISADataset(val_instances, tokenizer, None, args.conf_source, args.max_length)
     loader_kw = dict(collate_fn=collate, num_workers=args.num_workers,
                      pin_memory=torch.cuda.is_available())
@@ -483,7 +511,11 @@ def main():
         tokenizer=tokenizer,
     ).to(device)
 
-    if args.freeze_t_awl or args.polarity_only:
+    if args.aux_weight is not None:
+        model.aux_weight = args.aux_weight
+        logger.info("Fixed aux weight %.3f: loss = polarity + W*(aspect+opinion); T-AWL skipped.",
+                    args.aux_weight)
+    if args.freeze_t_awl or args.polarity_only or args.aux_weight is not None:
         model.t_awl.log_sigma_sq.requires_grad_(False)
 
     tawl_ids = {id(p) for p in model.t_awl.parameters()}
