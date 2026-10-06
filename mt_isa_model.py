@@ -270,6 +270,7 @@ class MTISAModel(nn.Module):
         opinion_attention_mask: Optional[torch.Tensor] = None,
         opinion_labels: Optional[torch.Tensor] = None,
         opinion_confidence: Optional[torch.Tensor] = None,
+        aux_mask: Optional[torch.Tensor] = None,
     ) -> Dict:
         outputs: Dict = {}
 
@@ -298,6 +299,11 @@ class MTISAModel(nn.Module):
         opinion_ps = self._aux_per_sample(
             opinion_input_ids, opinion_attention_mask, opinion_labels, opinion_confidence
         )
+        if aux_mask is not None:
+            # 1 for converged rows, 0 otherwise; the .mean() below divides by the
+            # full batch size B (not by the number of converged rows).
+            m = aux_mask.float()
+            aspect_ps, opinion_ps = aspect_ps * m, opinion_ps * m
         aspect_loss, opinion_loss = aspect_ps.mean(), opinion_ps.mean()
         outputs["aspect_loss"] = aspect_loss
         outputs["opinion_loss"] = opinion_loss

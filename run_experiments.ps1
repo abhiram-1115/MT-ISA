@@ -16,7 +16,7 @@
 # Switches:  -Smoke      1 epoch, 64 instances, seed 1 only, outputs go to models_smoke\
 #            -NoBf16     disable bf16 (auto-enabled when CUDA is available)
 #            -KeepCkpt   keep best.pt of every run (~1 GB each; deleted by default)
-# Options:   -Lr 1e-5 -SeedList 1,2,3 -Configs "grad_align,polonly" -Epochs 20 -BatchSize 32 -Accum 1 -Train ... -Aux ... -Test ... -Model ...
+# Options:   -Lr 1e-4 -SeedList "1,2345,2" -Configs "grad_align,polonly" -Epochs 20 -BatchSize 32 -Accum 1 -Train ... -Aux ... -Test ... -Model ...
 #
 # Re-running is safe: finished runs (test_metrics.json exists) are skipped.
 # =============================================================================
@@ -25,14 +25,14 @@ param(
     [switch]$NoBf16,
     [switch]$KeepCkpt,
     [string]$Train = "data/processed/restaurant14_train_implicit.json",
-    [string]$Aux   = "data/auxiliary/restaurants_train_implicit_aux.json",
+    [string]$Aux   = "data/auxiliary/restaurant14_train_implicit_aux_qwen7b_full.json",
     [string]$Test  = "data/processed/restaurant14_test_implicit.json",
     [string]$Model = "google/flan-t5-base",
     [int]$Epochs = 20,
     [int]$BatchSize = 32,
     [int]$Accum = 1,
-    [string]$Lr = "1e-5",
-    [int[]]$SeedList = @(1,2,3,4,5,6,7,8,9,10),
+    [string]$Lr = "1e-4",
+    [string]$SeedList = "1,2,3,4,5,6,7,8,9,10",
     [string]$Configs = ""
 )
 
@@ -145,6 +145,7 @@ $ConfigTable = [ordered]@{
     "aux0.1"     = @("--d-awl-strategy", "none", "--aux-weight", "0.1")
     "aux0.3"     = @("--d-awl-strategy", "none", "--aux-weight", "0.3")
     "aux1.0"     = @("--d-awl-strategy", "none", "--aux-weight", "1.0")
+    "aux_conv0.3" = @("--d-awl-strategy", "none", "--aux-mask-nonconverged", "--aux-weight", "0.3")
     "grad_align" = @("--d-awl-strategy", "grad_align")
 }
 $Selected = @($ConfigTable.Keys)
@@ -157,11 +158,12 @@ if ($Configs.Trim() -ne "") {
         exit 1
     }
 }
-Write-Host "Configs: $($Selected -join ', ') | seeds: $($SeedList -join ',')"
-if ($Smoke) { $SeedList = @(1) }
+$Seeds = @($SeedList -split "[,\s]+" | Where-Object { $_ -ne "" } | ForEach-Object { [int]$_ })
+if ($Smoke) { $Seeds = @(1) }
+Write-Host "Configs: $($Selected -join ', ') | seeds: $($Seeds -join ',')"
 
 # seed-major order: every config gets seed 1 before any gets seed 2
-foreach ($s in $SeedList) {
+foreach ($s in $Seeds) {
     foreach ($name in $Selected) {
         Invoke-Run $name $Lr $s $ConfigTable[$name]
     }

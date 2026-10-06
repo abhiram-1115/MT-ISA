@@ -169,11 +169,13 @@ class MTISADataset(Dataset):
         max_length: int = 128,
         label_max_length: int = 64,
         conf_override: Optional[Dict[str, Dict[str, float]]] = None,
+        mask_nonconverged: bool = False,
     ):
         self.instances = instances
         self.tok = tokenizer
         self.aux_by_id = aux_by_id
         self.conf_source = conf_source
+        self.mask_nonconverged = mask_nonconverged
         self.conf_override = conf_override  # id -> {"aspect_confidence", "opinion_confidence"}
         self.max_length = max_length
         self.label_max_length = label_max_length
@@ -209,6 +211,8 @@ class MTISADataset(Dataset):
             aux = self.aux_by_id[inst["id"]]
             aspect_text = (aux.get("aspect") or "").strip() or target
             opinion_text = (aux.get("opinion") or "").strip() or "none"
+            if self.mask_nonconverged:
+                item["aux_mask"] = 1.0 if aux.get("converged", False) else 0.0
             item.update({
                 "aspect_input_ids": self._enc(aspect_prompt(sentence, target), self.max_length),
                 "aspect_labels": self._enc(aspect_text, self.label_max_length),
@@ -232,6 +236,8 @@ def make_collate(pad_id: int):
             "instance_id": [b["instance_id"] for b in batch],
             "polarity_label_id": torch.tensor([b["polarity_label_id"] for b in batch]),
         }
+        if "aux_mask" in batch[0]:
+            out["aux_mask"] = torch.tensor([b["aux_mask"] for b in batch], dtype=torch.float)
         prefixes = ["polarity"]
         if "aspect_input_ids" in batch[0]:
             prefixes += ["aspect", "opinion"]
@@ -418,6 +424,10 @@ def main():
                          "constant = --const-conf for every instance")
     ap.add_argument("--const-conf", type=float, default=0.9,
                     help="value used by --conf-source constant")
+    ap.add_argument("--aux-mask-nonconverged", action="store_true",
+                    help="Multiply aspect/opinion losses by 1 (aux converged=True) or 0 (otherwise); "
+                         "polarity stays on all rows. Aux losses are averaged over ALL rows in the "
+                         "batch (denominator = batch size). Works with --aux-weight / T-AWL / D-AWL.")
     ap.add_argument("--aux-weight", type=float, default=None,
                     help="Skip T-AWL: loss = polarity + W * (aspect + opinion).")
     ap.add_argument("--drop-nonconverged", action="store_true",
@@ -475,6 +485,10 @@ def main():
                            if aux_by_id[x["id"]].get("converged", False)]
         logger.info("Dropped non-converged from train: %d -> %d", before, len(train_instances))
 
+    if args.aux_mask_nonconverged and not args.polarity_only:
+        nc = sum(1 for x in train_instances if not aux_by_id[x["id"]].get("converged", False))
+        logger.info("aux mask: %d/%d train rows non-converged -> aux loss 0 (denominator = batch size)",
+                    nc, len(train_instances))
     label_stats(train_instances, "train")
     label_stats(val_instances, "val")
 
@@ -508,7 +522,8 @@ def main():
 
     train_ds = MTISADataset(train_instances, tokenizer,
                             None if args.polarity_only else aux_by_id,
-                            args.conf_source, args.max_length, conf_override=conf_override)
+                            args.conf_source, args.max_length, conf_override=conf_override,
+                            mask_nonconverged=args.aux_mask_nonconverged and not args.polarity_only)
     val_ds = MTISADataset(val_instances, tokenizer, None, args.conf_source, args.max_length)
     loader_kw = dict(collate_fn=collate, num_workers=args.num_workers,
                      pin_memory=torch.cuda.is_available())
