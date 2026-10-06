@@ -3,7 +3,7 @@
 #
 # Runs every config for every seed sequentially and writes a summary.
 #
-# Grid: configs x seeds 1..10 (see $Configs below).
+# Grid: configs x seeds 1..10 (see $ConfigTable below).
 #
 # Run from the project root (where train_mt_isa.py lives), in the SAME
 # environment where torch.cuda.is_available() is True:
@@ -16,7 +16,7 @@
 # Switches:  -Smoke      1 epoch, 64 instances, seed 1 only, outputs go to models_smoke\
 #            -NoBf16     disable bf16 (auto-enabled when CUDA is available)
 #            -KeepCkpt   keep best.pt of every run (~1 GB each; deleted by default)
-# Options:   -Lr 1e-5 -SeedList 1,2,3 -Epochs 20 -BatchSize 32 -Accum 1 -Train ... -Aux ... -Test ... -Model ...
+# Options:   -Lr 1e-5 -SeedList 1,2,3 -Configs "grad_align,polonly" -Epochs 20 -BatchSize 32 -Accum 1 -Train ... -Aux ... -Test ... -Model ...
 #
 # Re-running is safe: finished runs (test_metrics.json exists) are skipped.
 # =============================================================================
@@ -32,7 +32,8 @@ param(
     [int]$BatchSize = 32,
     [int]$Accum = 1,
     [string]$Lr = "1e-5",
-    [int[]]$SeedList = @(1,2,3,4,5,6,7,8,9,10)
+    [int[]]$SeedList = @(1,2,3,4,5,6,7,8,9,10),
+    [string]$Configs = ""
 )
 
 $ErrorActionPreference = "Continue"
@@ -132,7 +133,7 @@ function Get-BestByVal {
 # Main grid: fixed LR, seeds 1..10, every config
 # Folder naming stays exp_<name>_lr<lr>_s<seed> so summarize.py still works.
 # =============================================================================
-$Configs = [ordered]@{
+$ConfigTable = [ordered]@{
     "polonly"    = @("--polarity-only")
     "mtl_tawl"   = @("--d-awl-strategy", "none")
     "in_stored"  = @("--d-awl-strategy", "input")
@@ -144,13 +145,25 @@ $Configs = [ordered]@{
     "aux0.1"     = @("--d-awl-strategy", "none", "--aux-weight", "0.1")
     "aux0.3"     = @("--d-awl-strategy", "none", "--aux-weight", "0.3")
     "aux1.0"     = @("--d-awl-strategy", "none", "--aux-weight", "1.0")
+    "grad_align" = @("--d-awl-strategy", "grad_align")
 }
+$Selected = @($ConfigTable.Keys)
+if ($Configs.Trim() -ne "") {
+    $Selected = @($Configs -split "[,\s]+" | Where-Object { $_ -ne "" })
+    $unknown = @($Selected | Where-Object { -not $ConfigTable.Contains($_) })
+    if ($unknown.Count -gt 0) {
+        Write-Host "ERROR: unknown config(s): $($unknown -join ', '). Valid: $($ConfigTable.Keys -join ', ')"
+        Stop-Transcript | Out-Null
+        exit 1
+    }
+}
+Write-Host "Configs: $($Selected -join ', ') | seeds: $($SeedList -join ',')"
 if ($Smoke) { $SeedList = @(1) }
 
 # seed-major order: every config gets seed 1 before any gets seed 2
 foreach ($s in $SeedList) {
-    foreach ($name in $Configs.Keys) {
-        Invoke-Run $name $Lr $s $Configs[$name]
+    foreach ($name in $Selected) {
+        Invoke-Run $name $Lr $s $ConfigTable[$name]
     }
 }
 

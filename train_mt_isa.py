@@ -264,6 +264,7 @@ def run_epoch(
     bf16: bool = False,
     max_consecutive_bad: int = 20,
     desc: str = "",
+    ga_meta: Optional[Dict[str, bool]] = None,
 ):
     train = optimizer is not None
     model.train(train)
@@ -273,6 +274,7 @@ def run_epoch(
     part_sum = {"aspect": 0.0, "opinion": 0.0, "polarity": 0.0}
     part_cnt = {"aspect": 0, "opinion": 0, "polarity": 0}
     ids, gold, pred = [], [], []
+    ga_sum: Dict[str, List[float]] = {}   # group -> [sum aspect w, sum opinion w, n]
 
     if train:
         optimizer.zero_grad(set_to_none=True)
@@ -303,6 +305,7 @@ def run_epoch(
                         f"{consec_bad} consecutive non-finite losses - training diverged. "
                         "Try a lower --lr / --awl-lr, or drop --bf16."
                     )
+                del out, loss
                 continue
             consec_bad = 0
 
@@ -326,9 +329,23 @@ def run_epoch(
                 part_sum[k] += float(v.detach())
                 part_cnt[k] += 1
 
+        gw = out.get("ga_weights")
+        if gw is not None and ga_meta is not None:
+            wa = gw["aspect"].float().cpu().tolist()
+            wo = gw["opinion"].float().cpu().tolist()
+            for iid, pid, a, o in zip(batch["instance_id"],
+                                      batch["polarity_label_id"].tolist(), wa, wo):
+                for grp in ("converged" if ga_meta[iid] else "non_converged",
+                            "gold_" + ID_TO_POLARITY[pid]):
+                    g = ga_sum.setdefault(grp, [0.0, 0.0, 0])
+                    g[0] += a
+                    g[1] += o
+                    g[2] += 1
+
         ids.extend(batch["instance_id"])
         pred.extend(out["polarity_logits"].argmax(dim=-1).detach().cpu().tolist())
         gold.extend(batch["polarity_label_id"].detach().cpu().tolist())
+        del out, loss, inputs, batch   # free graph/activations before the next step
         pbar.set_postfix(loss=f"{total_loss / n_ok:.4f}")
 
     if gold:
@@ -346,6 +363,8 @@ def run_epoch(
         "ids": ids,
         "gold": gold,
         "pred": pred,
+        "ga_stats": ({grp: {"aspect": v[0] / v[2], "opinion": v[1] / v[2], "n": v[2]}
+                      for grp, v in sorted(ga_sum.items())} if ga_sum else None),
     }
 
 
@@ -383,7 +402,11 @@ def main():
     ap.add_argument("--max-length", type=int, default=128)
 
     ap.add_argument("--d-awl-strategy", default="input",
-                    choices=["input", "output", "input_output", "none"])
+                    choices=["input", "output", "input_output", "none", "grad_align"],
+                    help="grad_align: per-sample aux weight = max(0, cos(g_i, EMA g_polarity)) on "
+                         "the last encoder+decoder block; T-AWL off; epoch 1 = warm-up (weight 1)")
+    ap.add_argument("--ga-ema", type=float, default=0.9,
+                    help="EMA decay of the polarity gradient for grad_align")
     ap.add_argument("--t-awl-version", default="alf2", choices=["alf1", "alf2"])
     ap.add_argument("--freeze-t-awl", action="store_true",
                     help="Keep sigma^2=1 for all tasks (plain equal-weight MTL ablation).")
@@ -509,13 +532,19 @@ def main():
         d_awl_strategy=args.d_awl_strategy,
         t_awl_version=args.t_awl_version,
         tokenizer=tokenizer,
+        ga_ema=args.ga_ema,
     ).to(device)
+    use_ga = args.d_awl_strategy == "grad_align" and not args.polarity_only
+    if use_ga and args.aux_weight is not None:
+        raise ValueError("--aux-weight and --d-awl-strategy grad_align are mutually exclusive.")
+    ga_meta = ({x["id"]: bool(aux_by_id[x["id"]].get("converged", False))
+                for x in train_instances} if use_ga else None)
 
     if args.aux_weight is not None:
         model.aux_weight = args.aux_weight
         logger.info("Fixed aux weight %.3f: loss = polarity + W*(aspect+opinion); T-AWL skipped.",
                     args.aux_weight)
-    if args.freeze_t_awl or args.polarity_only or args.aux_weight is not None:
+    if args.freeze_t_awl or args.polarity_only or args.aux_weight is not None or use_ga:
         model.t_awl.log_sigma_sq.requires_grad_(False)
 
     tawl_ids = {id(p) for p in model.t_awl.parameters()}
@@ -555,8 +584,9 @@ def main():
         logger.info("=" * 70)
         logger.info("Epoch %d/%d", epoch, args.num_epochs)
 
+        model.ga_warmup = epoch == 1     # grad_align: weight 1 in epoch 1
         tr = run_epoch(model, train_loader, device, optimizer, scheduler,
-                       args.grad_accum, args.bf16, desc=f"train {epoch}")
+                       args.grad_accum, args.bf16, desc=f"train {epoch}", ga_meta=ga_meta)
         with torch.no_grad():
             va = run_epoch(model, val_loader, device, bf16=args.bf16, desc=f"val {epoch}")
 
@@ -571,8 +601,15 @@ def main():
                     {k: round(v, 3) for k, v in w_norm.items()},
                     {k: round(v, 3) for k, v in sig.items()})
 
+        if tr["ga_stats"]:
+            logger.info("grad_align mean weights%s: %s", " (warm-up)" if epoch == 1 else "",
+                        {g: {k: round(x, 3) if k != "n" else x for k, x in v.items()}
+                         for g, v in tr["ga_stats"].items()})
+
         history.append({
             "epoch": epoch,
+            "ga_warmup": use_ga and epoch == 1,
+            "ga_weights": tr["ga_stats"],
             "train_loss": tr["loss"], "train_f1": tr["f1"], "train_acc": tr["acc"],
             "train_parts": tr["parts"], "train_skipped": tr["skipped"],
             "val_loss": va["loss"], "val_f1": va["f1"], "val_acc": va["acc"],

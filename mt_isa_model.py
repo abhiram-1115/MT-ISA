@@ -44,7 +44,7 @@ class DataLevelAWL(nn.Module):
 
     def __init__(self, strategy: str = "input", conf_min: float = CONF_MIN):
         super().__init__()
-        assert strategy in ("input", "output", "input_output", "none"), (
+        assert strategy in ("input", "output", "input_output", "none", "grad_align"), (
             f"Unknown D-AWL strategy: {strategy}"
         )
         self.strategy = strategy
@@ -139,9 +139,14 @@ class MTISAModel(nn.Module):
         t_awl_version: str = "alf2",
         backbone: Optional[nn.Module] = None,
         tokenizer=None,
+        ga_ema: float = 0.9,
     ):
         super().__init__()
         self.model_name = model_name
+        self.ga_ema = ga_ema            # EMA decay of the polarity gradient (grad_align)
+        self.ga_warmup = False          # True -> grad_align uses weight 1 (set per epoch by trainer)
+        self._ga_params = None          # shared-subset params (last encoder + last decoder block)
+        self._ga_ref = None             # EMA of the polarity gradient on that subset, fp32 flat
         self.d_awl_strategy = d_awl_strategy
         self.t_awl_version = t_awl_version
 
@@ -185,7 +190,7 @@ class MTISAModel(nn.Module):
         n_tok = (labels != -100).float().sum(dim=1).clamp(min=1.0)
         return nll.sum(dim=1) / n_tok
 
-    def _aux_loss(
+    def _aux_per_sample(
         self,
         input_ids: torch.Tensor,
         attention_mask: torch.Tensor,
@@ -196,8 +201,60 @@ class MTISAModel(nn.Module):
         emb = self.d_awl.scale_embeddings(emb, confidence)          # input strategy
         out = self.backbone(inputs_embeds=emb, attention_mask=attention_mask, labels=labels)
         per_sample = self._per_sample_nll(out.logits, labels)
-        per_sample = self.d_awl.weight_sample_losses(per_sample, confidence)  # output strategy
-        return per_sample.mean()
+        return self.d_awl.weight_sample_losses(per_sample, confidence)  # output strategy -> [B]
+
+    def _aux_loss(self, *args) -> torch.Tensor:
+        return self._aux_per_sample(*args).mean()
+
+    # ------------------------------------------------- grad_align (D-AWL variant)
+    # Shared subset = parameters of the LAST encoder block and the LAST decoder block.
+    # Extra memory (T5-base, ~17M params, fp32): ~70 MB for the EMA of the polarity
+    # gradient + ~70 MB each for the transient polarity gradient and one per-sample
+    # gradient (freed with del right after use). Autograd graphs of the three forward
+    # passes are kept alive until the single final backward (same as without
+    # grad_align); the per-sample grads reuse them via retain_graph=True, so there is
+    # no extra activation memory, only extra compute (2*B backward passes per step).
+    def _ga_subset(self):
+        if self._ga_params is None:
+            blocks = [self.backbone.encoder.block[-1], self.backbone.decoder.block[-1]]
+            self._ga_params = [p for b in blocks for p in b.parameters() if p.requires_grad]
+        return self._ga_params
+
+    def _ga_flat_grad(self, loss: torch.Tensor) -> torch.Tensor:
+        """d loss / d subset as one fp32 vector (graph is kept for later calls)."""
+        params = self._ga_subset()
+        grads = torch.autograd.grad(loss, params, retain_graph=True, allow_unused=True)
+        flat = torch.cat([
+            (g if g is not None else torch.zeros_like(p)).reshape(-1).float()
+            for g, p in zip(grads, params)
+        ])
+        del grads
+        return flat
+
+    @torch.no_grad()
+    def _ga_update_ref(self, g_p: torch.Tensor) -> None:
+        if not torch.isfinite(g_p).all():       # NaN guard: keep the old EMA
+            return
+        if self._ga_ref is None:
+            self._ga_ref = g_p.clone()
+        else:
+            self._ga_ref.mul_(self.ga_ema).add_(g_p, alpha=1.0 - self.ga_ema)
+
+    @torch.no_grad()
+    def _ga_cos_weight(self, g_i: torch.Tensor) -> torch.Tensor:
+        ref = self._ga_ref
+        denom = (g_i.norm() * ref.norm()).clamp_min(1e-12)
+        w = torch.nan_to_num((g_i * ref).sum() / denom, nan=0.0, posinf=0.0, neginf=0.0)
+        return w.clamp_min(0.0)
+
+    def _ga_weights(self, per_sample: torch.Tensor) -> torch.Tensor:
+        """weight_i = max(0, cos(g_i, EMA g_p)), detached, [B]."""
+        ws = []
+        for i in range(per_sample.shape[0]):
+            g_i = self._ga_flat_grad(per_sample[i])
+            ws.append(self._ga_cos_weight(g_i))
+            del g_i
+        return torch.stack(ws).detach()
 
     # ---------------------------------------------------------------- forward
     def forward(
@@ -235,14 +292,36 @@ class MTISAModel(nn.Module):
             return outputs
 
         # ---- auxiliary tasks ----
-        aspect_loss = self._aux_loss(
+        aspect_ps = self._aux_per_sample(
             aspect_input_ids, aspect_attention_mask, aspect_labels, aspect_confidence
         )
-        opinion_loss = self._aux_loss(
+        opinion_ps = self._aux_per_sample(
             opinion_input_ids, opinion_attention_mask, opinion_labels, opinion_confidence
         )
+        aspect_loss, opinion_loss = aspect_ps.mean(), opinion_ps.mean()
         outputs["aspect_loss"] = aspect_loss
         outputs["opinion_loss"] = opinion_loss
+
+        # ---- grad_align: gradient-cosine weights, T-AWL off ----
+        if self.d_awl.strategy == "grad_align":
+            B = aspect_ps.shape[0]
+            if self.training and torch.is_grad_enabled():
+                g_p = self._ga_flat_grad(polarity_loss)
+                self._ga_update_ref(g_p)
+                del g_p
+                if self.ga_warmup or self._ga_ref is None:
+                    w_a = torch.ones_like(aspect_ps.detach())
+                    w_o = torch.ones_like(opinion_ps.detach())
+                else:
+                    w_a = self._ga_weights(aspect_ps)
+                    w_o = self._ga_weights(opinion_ps)
+                outputs["ga_weights"] = {"aspect": w_a, "opinion": w_o}
+            else:  # eval: no grads available, weights are irrelevant for the logged loss
+                w_a = torch.ones_like(aspect_ps.detach())
+                w_o = torch.ones_like(opinion_ps.detach())
+            aux = torch.cat([w_a * aspect_ps, w_o * opinion_ps]).mean()
+            outputs["combined_loss"] = polarity_loss + aux
+            return outputs
 
         # ---- fixed-weight ablation (skips T-AWL) or task-level AWL ----
         aux_weight = getattr(self, "aux_weight", None)
