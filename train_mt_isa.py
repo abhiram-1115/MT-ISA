@@ -288,8 +288,9 @@ def run_epoch(
     use_amp = bf16 and device.type == "cuda"
 
     total_loss, n_ok, n_bad, consec_bad = 0.0, 0, 0, 0
-    part_sum = {"aspect": 0.0, "opinion": 0.0, "polarity": 0.0}
-    part_cnt = {"aspect": 0, "opinion": 0, "polarity": 0}
+    # label / rest only exist in --label-first-seq training (label-token NLL, rest-of-target NLL)
+    part_sum = {"aspect": 0.0, "opinion": 0.0, "polarity": 0.0, "label": 0.0, "rest": 0.0}
+    part_cnt = {"aspect": 0, "opinion": 0, "polarity": 0, "label": 0, "rest": 0}
     ids, gold, pred = [], [], []
     ga_sum: Dict[str, List[float]] = {}   # group -> [sum aspect w, sum opinion w, n]
 
@@ -375,7 +376,8 @@ def run_epoch(
         "loss": total_loss / max(1, n_ok),
         "f1": f1,
         "acc": acc,
-        "parts": {k: part_sum[k] / max(1, part_cnt[k]) for k in part_sum},
+        "parts": {k: part_sum[k] / max(1, part_cnt[k]) for k in part_sum
+                  if part_cnt[k] > 0 or k in ("aspect", "opinion", "polarity")},
         "skipped": n_bad,
         "ids": ids,
         "gold": gold,
@@ -445,8 +447,8 @@ def main():
                          "sentence keeps its own hints). Polarity task untouched.")
     ap.add_argument("--label-first-seq", type=float, default=None, metavar="W",
                     help="One decoder target '<label>. aspect: <a>. opinion: <o>.' per example; "
-                         "token 0 (label) weight 1, later tokens weight W, normalised by the sum of "
-                         "weights per sample. No T-AWL/D-AWL; needs --d-awl-strategy none.")
+                         "loss_i = nll_label + W * mean NLL of the later tokens (incl. </s>), "
+                         "batch mean. No T-AWL/D-AWL; needs --d-awl-strategy none.")
     ap.add_argument("--aux-weight", type=float, default=None,
                     help="Skip T-AWL: loss = polarity + W * (aspect + opinion).")
     ap.add_argument("--drop-nonconverged", action="store_true",
@@ -564,7 +566,7 @@ def main():
                 raise AssertionError(
                     f"first token of '{w}. aspect: ..' ({full[0]}) != first token of '{w}' ({bare[0]})")
         logger.info("[label-first-seq] first-token check passed for all %d labels "
-                    "(later-token weight W=%g)", len(POLARITY_WORDS), args.label_first_seq)
+                    "(rest-of-target weight W=%g)", len(POLARITY_WORDS), args.label_first_seq)
 
     conf_override = None
     if args.conf_source in ("shuffle", "constant") and has_aux_tasks:
@@ -622,8 +624,8 @@ def main():
 
     if args.label_first_seq is not None:
         model.label_first_w = args.label_first_seq
-        logger.info("label-first-seq W=%g: train loss = weighted token CE (label token 1, later "
-                    "tokens W, / sum of weights); T-AWL/D-AWL off.", args.label_first_seq)
+        logger.info("label-first-seq W=%g: train loss = nll_label + W * mean nll(rest); "
+                    "T-AWL/D-AWL off.", args.label_first_seq)
     if args.aux_weight is not None:
         model.aux_weight = args.aux_weight
         logger.info("Fixed aux weight %.3f: loss = polarity + W*(aspect+opinion); T-AWL skipped.",

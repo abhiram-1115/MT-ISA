@@ -192,17 +192,17 @@ class MTISAModel(nn.Module):
         return nll.sum(dim=1) / n_tok
 
     @staticmethod
-    def _weighted_seq_nll(logits: torch.Tensor, labels: torch.Tensor, later_w: float) -> torch.Tensor:
-        """Per-sample weighted token NLL for a "<label>. aspect: .. opinion: .." target.
-        Token 0 (the label token) has weight 1, every later real token has weight later_w;
-        normalised by the sum of weights of that sample (>= 1), so later_w = 0 gives exactly
-        the label-token NLL.  fp32, padding (-100) ignored.  -> [B]"""
+    def _label_first_nll(logits: torch.Tensor, labels: torch.Tensor):
+        """For a "<label>. aspect: .. opinion: .." target. fp32, padding (-100) ignored.
+        Returns (label_nll [B], rest_nll [B]): NLL of token 0 (the label) and the mean NLL
+        over the real tokens after it (incl. </s>); rest is 0 if there are none."""
         nll = F.cross_entropy(
             logits.float().transpose(1, 2), labels, ignore_index=-100, reduction="none"
         )  # [B, T]
-        w = (labels != -100).float() * later_w
-        w[:, 0] = 1.0
-        return (w * nll).sum(dim=1) / w.sum(dim=1).clamp(min=1.0)
+        rest = (labels != -100).float()
+        rest[:, 0] = 0.0
+        rest_nll = (nll * rest).sum(dim=1) / rest.sum(dim=1).clamp(min=1.0)
+        return nll[:, 0], rest_nll
 
     def _aux_per_sample(
         self,
@@ -297,8 +297,11 @@ class MTISAModel(nn.Module):
         if self.label_first_w is not None and self.training:
             # label-first-seq: one decoder target per example (train only; eval labels are
             # the bare label word, so validation/test loss is unchanged)
-            polarity_loss = self._weighted_seq_nll(
-                pol.logits, polarity_labels, self.label_first_w).mean()
+            label_nll, rest_nll = self._label_first_nll(pol.logits, polarity_labels)
+            outputs["label_loss"] = label_nll.mean()   # comparable with polonly's label loss
+            outputs["rest_loss"] = rest_nll.mean()
+            # label weight is always 1; W is a pure auxiliary weight (W=0 -> label NLL only)
+            polarity_loss = (label_nll + self.label_first_w * rest_nll).mean()
         else:
             polarity_loss = self._per_sample_nll(pol.logits, polarity_labels).mean()
         outputs["polarity_loss"] = polarity_loss
