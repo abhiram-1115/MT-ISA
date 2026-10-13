@@ -144,6 +144,7 @@ class MTISAModel(nn.Module):
         super().__init__()
         self.model_name = model_name
         self.ga_ema = ga_ema            # EMA decay of the polarity gradient (grad_align)
+        self.label_first_w = None       # float -> label-first-seq training loss (see forward)
         self.ga_warmup = False          # True -> grad_align uses weight 1 (set per epoch by trainer)
         self._ga_params = None          # shared-subset params (last encoder + last decoder block)
         self._ga_ref = None             # EMA of the polarity gradient on that subset, fp32 flat
@@ -189,6 +190,19 @@ class MTISAModel(nn.Module):
         )  # [B, T]; 0 at ignored positions
         n_tok = (labels != -100).float().sum(dim=1).clamp(min=1.0)
         return nll.sum(dim=1) / n_tok
+
+    @staticmethod
+    def _weighted_seq_nll(logits: torch.Tensor, labels: torch.Tensor, later_w: float) -> torch.Tensor:
+        """Per-sample weighted token NLL for a "<label>. aspect: .. opinion: .." target.
+        Token 0 (the label token) has weight 1, every later real token has weight later_w;
+        normalised by the sum of weights of that sample (>= 1), so later_w = 0 gives exactly
+        the label-token NLL.  fp32, padding (-100) ignored.  -> [B]"""
+        nll = F.cross_entropy(
+            logits.float().transpose(1, 2), labels, ignore_index=-100, reduction="none"
+        )  # [B, T]
+        w = (labels != -100).float() * later_w
+        w[:, 0] = 1.0
+        return (w * nll).sum(dim=1) / w.sum(dim=1).clamp(min=1.0)
 
     def _aux_per_sample(
         self,
@@ -280,7 +294,13 @@ class MTISAModel(nn.Module):
             attention_mask=polarity_attention_mask,
             labels=polarity_labels,
         )
-        polarity_loss = self._per_sample_nll(pol.logits, polarity_labels).mean()
+        if self.label_first_w is not None and self.training:
+            # label-first-seq: one decoder target per example (train only; eval labels are
+            # the bare label word, so validation/test loss is unchanged)
+            polarity_loss = self._weighted_seq_nll(
+                pol.logits, polarity_labels, self.label_first_w).mean()
+        else:
+            polarity_loss = self._per_sample_nll(pol.logits, polarity_labels).mean()
         outputs["polarity_loss"] = polarity_loss
         # decoder step 0 predicts the first label token -> 3-way classification
         outputs["polarity_logits"] = (

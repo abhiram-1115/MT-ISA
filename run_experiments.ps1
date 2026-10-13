@@ -146,6 +146,11 @@ $ConfigTable = [ordered]@{
     "aux0.3"     = @("--d-awl-strategy", "none", "--aux-weight", "0.3")
     "aux1.0"     = @("--d-awl-strategy", "none", "--aux-weight", "1.0")
     "aux_conv0.3" = @("--d-awl-strategy", "none", "--aux-mask-nonconverged", "--aux-weight", "0.3")
+    "aux0.3_shufhints" = @("--d-awl-strategy", "none", "--aux-weight", "0.3", "--shuffle-hints")
+    "lf0.1"      = @("--d-awl-strategy", "none", "--label-first-seq", "0.1")
+    "lf0.3"      = @("--d-awl-strategy", "none", "--label-first-seq", "0.3")
+    "lf1.0"      = @("--d-awl-strategy", "none", "--label-first-seq", "1.0")
+    "lf0.3_shuf" = @("--d-awl-strategy", "none", "--label-first-seq", "0.3", "--shuffle-hints")
     "grad_align" = @("--d-awl-strategy", "grad_align")
 }
 $Selected = @($ConfigTable.Keys)

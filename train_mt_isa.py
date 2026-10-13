@@ -136,6 +136,10 @@ def describe_aux(aux_rows: List[Dict]):
 # ----------------------------------------------------------------------------
 # prompts (Flan-T5 is instruction-tuned: natural questions work better than [SEP])
 # ----------------------------------------------------------------------------
+def label_first_target(label: str, aspect: str, opinion: str) -> str:
+    return f"{label}. aspect: {aspect}. opinion: {opinion}."
+
+
 def aspect_prompt(sentence: str, target: str) -> str:
     return f'Given the sentence "{sentence}", what is the mentioned aspect towards {target}?'
 
@@ -170,12 +174,14 @@ class MTISADataset(Dataset):
         label_max_length: int = 64,
         conf_override: Optional[Dict[str, Dict[str, float]]] = None,
         mask_nonconverged: bool = False,
+        label_first_seq: bool = False,
     ):
         self.instances = instances
         self.tok = tokenizer
         self.aux_by_id = aux_by_id
         self.conf_source = conf_source
         self.mask_nonconverged = mask_nonconverged
+        self.label_first_seq = label_first_seq
         self.conf_override = conf_override  # id -> {"aspect_confidence", "opinion_confidence"}
         self.max_length = max_length
         self.label_max_length = label_max_length
@@ -211,6 +217,11 @@ class MTISADataset(Dataset):
             aux = self.aux_by_id[inst["id"]]
             aspect_text = (aux.get("aspect") or "").strip() or target
             opinion_text = (aux.get("opinion") or "").strip() or "none"
+            if self.label_first_seq:
+                # ONE target: polarity prompt -> "<label>. aspect: <a>. opinion: <o>."
+                item["polarity_labels"] = self._enc(
+                    label_first_target(gold, aspect_text, opinion_text), self.label_max_length)
+                return item
             if self.mask_nonconverged:
                 item["aux_mask"] = 1.0 if aux.get("converged", False) else 0.0
             item.update({
@@ -428,6 +439,14 @@ def main():
                     help="Multiply aspect/opinion losses by 1 (aux converged=True) or 0 (otherwise); "
                          "polarity stays on all rows. Aux losses are averaged over ALL rows in the "
                          "batch (denominator = batch size). Works with --aux-weight / T-AWL / D-AWL.")
+    ap.add_argument("--shuffle-hints", action="store_true",
+                    help="Permute the aux records (aspect, opinion, confidences, converged) across "
+                         "TRAIN instances (cyclic shift of a permutation seeded by --seed, so no "
+                         "sentence keeps its own hints). Polarity task untouched.")
+    ap.add_argument("--label-first-seq", type=float, default=None, metavar="W",
+                    help="One decoder target '<label>. aspect: <a>. opinion: <o>.' per example; "
+                         "token 0 (label) weight 1, later tokens weight W, normalised by the sum of "
+                         "weights per sample. No T-AWL/D-AWL; needs --d-awl-strategy none.")
     ap.add_argument("--aux-weight", type=float, default=None,
                     help="Skip T-AWL: loss = polarity + W * (aspect + opinion).")
     ap.add_argument("--drop-nonconverged", action="store_true",
@@ -442,6 +461,20 @@ def main():
     ap.add_argument("--num-workers", type=int, default=0)
     ap.add_argument("--max-instances", type=int, default=None, help="debug: cap train size")
     args = ap.parse_args()
+
+    if args.label_first_seq is not None:
+        bad = [name for name, on in (
+            ("--aux-weight", args.aux_weight is not None),
+            ("--d-awl-strategy != none", args.d_awl_strategy != "none"),
+            ("--aux-mask-nonconverged", args.aux_mask_nonconverged),
+            ("--polarity-only", args.polarity_only)) if on]
+        if bad:
+            raise ValueError("--label-first-seq cannot be combined with: " + ", ".join(bad))
+        if args.label_first_seq < 0:
+            raise ValueError("--label-first-seq W must be >= 0")
+    if args.shuffle_hints and args.polarity_only:
+        logger.warning("--shuffle-hints has no effect with --polarity-only.")
+    has_aux_tasks = not args.polarity_only and args.label_first_seq is None
 
     set_seed(args.seed)
     if torch.cuda.is_available():
@@ -502,8 +535,39 @@ def main():
                     before, len(train_instances))
     collate = make_collate(tokenizer.pad_token_id)
 
+    if args.shuffle_hints and not args.polarity_only:
+        ids_ = [x["id"] for x in train_instances]
+        n = len(ids_)
+        if n < 2:
+            logger.warning("--shuffle-hints needs >= 2 train rows; skipped.")
+        else:
+            # random cyclic order -> donor of order[k] is order[k+1]: a derangement
+            order = np.random.RandomState(args.seed).permutation(n)
+            donor = {ids_[order[k]]: ids_[order[(k + 1) % n]] for k in range(n)}
+            aux_by_id = {**aux_by_id, **{i: aux_by_id[d] for i, d in donor.items()}}
+            logger.info("--shuffle-hints: train rows now use another row's aux record "
+                        "(%d rows, aspect/opinion/confidences/converged move together)", n)
+            for i in ids_[:5]:
+                logger.info("[shuffle-hints] %s -> hints of %s", i, donor[i])
+
+    if args.label_first_seq is not None:
+        # the first target token must be the label token, otherwise step-0 inference
+        # (logits over the 3 label first-token ids) would not match what was trained
+        for w in POLARITY_WORDS:
+            bare = tokenizer(w).input_ids
+            full = tokenizer(label_first_target(w, "the food", "tasty")).input_ids
+            logger.info("[label-first-seq] %-8s bare ids %s | full-target ids %s... | "
+                        "first token %r vs %r", w, bare, full[:4],
+                        tokenizer.convert_ids_to_tokens(bare[0]),
+                        tokenizer.convert_ids_to_tokens(full[0]))
+            if bare[0] != full[0]:
+                raise AssertionError(
+                    f"first token of '{w}. aspect: ..' ({full[0]}) != first token of '{w}' ({bare[0]})")
+        logger.info("[label-first-seq] first-token check passed for all %d labels "
+                    "(later-token weight W=%g)", len(POLARITY_WORDS), args.label_first_seq)
+
     conf_override = None
-    if args.conf_source in ("shuffle", "constant") and not args.polarity_only:
+    if args.conf_source in ("shuffle", "constant") and has_aux_tasks:
         ids_ = [x["id"] for x in train_instances]
         stored = [(clean_conf(aux_by_id[i].get("aspect_confidence")),
                    clean_conf(aux_by_id[i].get("opinion_confidence"))) for i in ids_]
@@ -523,7 +587,8 @@ def main():
     train_ds = MTISADataset(train_instances, tokenizer,
                             None if args.polarity_only else aux_by_id,
                             args.conf_source, args.max_length, conf_override=conf_override,
-                            mask_nonconverged=args.aux_mask_nonconverged and not args.polarity_only)
+                            mask_nonconverged=args.aux_mask_nonconverged and not args.polarity_only,
+                            label_first_seq=args.label_first_seq is not None)
     val_ds = MTISADataset(val_instances, tokenizer, None, args.conf_source, args.max_length)
     loader_kw = dict(collate_fn=collate, num_workers=args.num_workers,
                      pin_memory=torch.cuda.is_available())
@@ -532,12 +597,12 @@ def main():
 
     # sanity print: one decoded example per task + label check
     ex = collate([train_ds[0]])
-    for p in (["polarity"] if args.polarity_only else ["aspect", "opinion", "polarity"]):
+    for p in (["aspect", "opinion", "polarity"] if has_aux_tasks else ["polarity"]):
         lab = ex[f"{p}_labels"][0].clone()
         lab[lab == -100] = tokenizer.pad_token_id
         logger.info("[%s] input : %s", p, tokenizer.decode(ex[f"{p}_input_ids"][0], skip_special_tokens=True))
         logger.info("[%s] target: %s", p, tokenizer.decode(lab, skip_special_tokens=True))
-    if not args.polarity_only:
+    if has_aux_tasks:
         logger.info("[example confidences] aspect=%.2f opinion=%.2f",
                     float(ex["aspect_confidence"][0]), float(ex["opinion_confidence"][0]))
 
@@ -555,11 +620,16 @@ def main():
     ga_meta = ({x["id"]: bool(aux_by_id[x["id"]].get("converged", False))
                 for x in train_instances} if use_ga else None)
 
+    if args.label_first_seq is not None:
+        model.label_first_w = args.label_first_seq
+        logger.info("label-first-seq W=%g: train loss = weighted token CE (label token 1, later "
+                    "tokens W, / sum of weights); T-AWL/D-AWL off.", args.label_first_seq)
     if args.aux_weight is not None:
         model.aux_weight = args.aux_weight
         logger.info("Fixed aux weight %.3f: loss = polarity + W*(aspect+opinion); T-AWL skipped.",
                     args.aux_weight)
-    if args.freeze_t_awl or args.polarity_only or args.aux_weight is not None or use_ga:
+    if args.freeze_t_awl or args.polarity_only or args.aux_weight is not None or use_ga \
+            or args.label_first_seq is not None:
         model.t_awl.log_sigma_sq.requires_grad_(False)
 
     tawl_ids = {id(p) for p in model.t_awl.parameters()}
