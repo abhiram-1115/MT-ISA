@@ -99,6 +99,8 @@ def make_validation_split(instances: List[Dict], fraction: float, seed: int):
 
 def sentence_group(inst: Dict) -> str:
     """Source-sentence key: '<sentence id>_aspect_<k>' -> '<sentence id>'."""
+    if inst.get("sentence_id"):            # restaurant14_*_all.json rows
+        return str(inst["sentence_id"])
     i = inst["id"]
     return i.rsplit("_aspect_", 1)[0] if "_aspect_" in i else i
 
@@ -448,6 +450,12 @@ def main():
     ap.add_argument("--val-group-by-sentence", action="store_true",
                     help="Split validation by whole sentences (id prefix before '_aspect_') so no "
                          "sentence is in both train and val. Default: split by instance.")
+    ap.add_argument("--train-all", action="store_true",
+                    help="Train on ALL rows of --train-all-data (explicit + implicit), no implicit/aux/"
+                         "<unk> filters. Needs --polarity-only. Validation = sentence-grouped split. "
+                         "Also scores the best checkpoint on --test-all-data (test_metrics_all.json).")
+    ap.add_argument("--train-all-data", default="data/processed/restaurant14_train_all.json")
+    ap.add_argument("--test-all-data", default="data/processed/restaurant14_test_all.json")
     ap.add_argument("--val-data", default=None,
                     help="Optional separate validation JSON; otherwise split from train.")
     ap.add_argument("--test-data", default=None,
@@ -524,6 +532,16 @@ def main():
     if args.shuffle_hints and args.polarity_only:
         logger.warning("--shuffle-hints has no effect with --polarity-only.")
     has_aux_tasks = not args.polarity_only and args.label_first_seq is None
+    if args.train_all:
+        bad = [n for n, on in (("--drop-nonconverged", args.drop_nonconverged),
+                               ("--val-data", bool(args.val_data))) if on]
+        if not args.polarity_only:
+            raise ValueError("--train-all is only allowed with --polarity-only "
+                             "(aux hints exist only for the implicit rows).")
+        if bad:
+            raise ValueError("--train-all cannot be combined with: " + ", ".join(bad))
+        if not args.test_data:
+            logger.warning("--train-all without --test-data: no test evaluation will run.")
 
     set_seed(args.seed)
     if torch.cuda.is_available():
@@ -537,22 +555,40 @@ def main():
     logger.info("Device: %s | args: %s", device, vars(args))
 
     # ---------------- data ----------------
-    train_all = load_json(args.train_data)
-    aux_rows = load_json(args.aux_data)
-    aux_by_id = {a["instance_id"]: a for a in aux_rows}
-    describe_aux(aux_rows)
-
     def keep(x):
         return x.get("is_implicit", True) and x["gold_polarity"].lower() in POLARITY_TO_ID
 
-    pool = [x for x in train_all if keep(x)]
-    with_aux = [x for x in pool if x["id"] in aux_by_id]
-    logger.info("Train instances: %d | implicit+valid: %d | with aux: %d",
-                len(train_all), len(pool), len(with_aux))
+    def keep_any(x):   # explicit + implicit
+        return x["gold_polarity"].lower() in POLARITY_TO_ID
+
+    def ensure_id(rows):  # *_all.json rows only have "instance_id"
+        for x in rows:
+            x.setdefault("id", x.get("instance_id"))
+        return rows
+
+    if args.train_all:
+        train_all = ensure_id(load_json(args.train_all_data))
+        aux_rows, aux_by_id = [], {}
+        pool = [x for x in train_all if keep_any(x)]
+        with_aux = pool   # polarity-only: no aux-availability filter
+        logger.info("--train-all (%s): rows %d | valid polarity %d | aux-availability filter: "
+                    "skipped (%d -> %d)", args.train_all_data, len(train_all), len(pool),
+                    len(pool), len(with_aux))
+    else:
+        train_all = load_json(args.train_data)
+        aux_rows = load_json(args.aux_data)
+        aux_by_id = {a["instance_id"]: a for a in aux_rows}
+        describe_aux(aux_rows)
+        pool = [x for x in train_all if keep(x)]
+        with_aux = [x for x in pool if x["id"] in aux_by_id]
+        logger.info("Train instances: %d | implicit+valid: %d | with aux: %d",
+                    len(train_all), len(pool), len(with_aux))
     if not with_aux:
         raise ValueError("No training instance has an auxiliary record - check the id fields.")
     if args.max_instances:
+        before = len(with_aux)
         with_aux = with_aux[: args.max_instances]
+        logger.info("--max-instances: %d -> %d", before, len(with_aux))
 
     if args.val_data:
         if args.val_group_by_sentence:
@@ -560,12 +596,12 @@ def main():
         val_instances = [x for x in load_json(args.val_data) if keep(x)]
         train_instances = with_aux
     else:
-        if args.val_group_by_sentence:
+        if args.val_group_by_sentence or args.train_all:
             train_instances, val_instances = make_grouped_validation_split(
                 with_aux, args.validation_fraction, args.seed)
             tr_sent = {sentence_group(x) for x in train_instances}
             shared = sum(1 for g in {sentence_group(x) for x in val_instances} if g in tr_sent)
-            logger.info("--val-group-by-sentence: val %d rows / %d sentences | classes %s | "
+            logger.info("grouped val split (sentences are never split): val %d rows / %d sentences | classes %s | "
                         "sentences shared with train: %d",
                         len(val_instances), len({sentence_group(x) for x in val_instances}),
                         dict(Counter(x["gold_polarity"].lower() for x in val_instances)), shared)
@@ -590,7 +626,10 @@ def main():
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
 
-    if not args.keep_unk_labels:
+    if args.train_all:
+        logger.info("<unk> aux-label filter: skipped in --train-all mode (%d -> %d)",
+                    len(train_instances), len(train_instances))
+    elif not args.keep_unk_labels:
         before = len(train_instances)
         train_instances = [x for x in train_instances
                            if not has_unk_label(aux_by_id[x["id"]], tokenizer)]
@@ -799,6 +838,39 @@ def main():
         with open(out_dir / "test_predictions.json", "w", encoding="utf-8") as f:
             json.dump([{"id": i, "gold": ID_TO_POLARITY[g], "pred": ID_TO_POLARITY[p]}
                        for i, g, p in zip(te["ids"], te["gold"], te["pred"])], f, indent=2)
+
+        # ---- extra: ALL test rows (explicit + implicit); main metric above is unchanged ----
+        if args.train_all:
+            all_rows = [x for x in ensure_id(load_json(args.test_all_data)) if keep_any(x)]
+            label_stats(all_rows, "test_all")
+            all_ds = MTISADataset(all_rows, tokenizer, None, args.conf_source, args.max_length)
+            all_loader = DataLoader(all_ds, batch_size=args.eval_batch_size, shuffle=False, **loader_kw)
+            with torch.no_grad():
+                ta = run_epoch(model, all_loader, device, bf16=args.bf16, desc="test_all")
+            cm = confusion_matrix(ta["gold"], ta["pred"], labels=[0, 1, 2])
+            logger.info("TEST ALL (%d rows, best ckpt, epoch %d): Acc %.4f | macro-F1 %.4f",
+                        len(all_rows), best_epoch, ta["acc"], ta["f1"])
+            logger.info("Confusion matrix test_all (rows=gold, cols=pred; order %s):\n%s",
+                        POLARITY_WORDS, cm)
+            implicit_of = {x["id"]: bool(x.get("is_implicit")) for x in all_rows}
+            subsets = {}
+            for name, flag in (("implicit", True), ("explicit", False)):
+                idx = [k for k, i in enumerate(ta["ids"]) if implicit_of[i] == flag]
+                if idx:
+                    g = [ta["gold"][k] for k in idx]
+                    p = [ta["pred"][k] for k in idx]
+                    subsets[name] = {
+                        "n": len(idx),
+                        "acc": float(np.mean(np.array(g) == np.array(p))),
+                        "macro_f1": float(f1_score(g, p, labels=[0, 1, 2], average="macro",
+                                                   zero_division=0)),
+                    }
+            logger.info("test_all subsets: %s", subsets)
+            with open(out_dir / "test_metrics_all.json", "w", encoding="utf-8") as f:
+                json.dump({"n": len(all_rows), "acc": ta["acc"], "macro_f1": ta["f1"],
+                           "confusion_matrix": cm.tolist(), "label_order": POLARITY_WORDS,
+                           "subsets": subsets, "best_epoch": best_epoch, "val_f1": best_f1,
+                           "test_file": args.test_all_data}, f, indent=2)
 
 
 if __name__ == "__main__":

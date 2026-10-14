@@ -154,6 +154,7 @@ $ConfigTable = [ordered]@{
     "polonly_gv" = @("--polarity-only", "--val-group-by-sentence")
     "lf1.0_gv"   = @("--d-awl-strategy", "none", "--label-first-seq", "1.0", "--val-group-by-sentence")
     "lf1.0_shuf_gv" = @("--d-awl-strategy", "none", "--label-first-seq", "1.0", "--shuffle-hints", "--val-group-by-sentence")
+    "polonly_all_gv" = @("--polarity-only", "--train-all", "--val-group-by-sentence")
     "grad_align" = @("--d-awl-strategy", "grad_align")
 }
 $Selected = @($ConfigTable.Keys)
