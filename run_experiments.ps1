@@ -151,6 +151,9 @@ $ConfigTable = [ordered]@{
     "lf0.3"      = @("--d-awl-strategy", "none", "--label-first-seq", "0.3")
     "lf1.0"      = @("--d-awl-strategy", "none", "--label-first-seq", "1.0")
     "lf0.3_shuf" = @("--d-awl-strategy", "none", "--label-first-seq", "0.3", "--shuffle-hints")
+    "polonly_gv" = @("--polarity-only", "--val-group-by-sentence")
+    "lf1.0_gv"   = @("--d-awl-strategy", "none", "--label-first-seq", "1.0", "--val-group-by-sentence")
+    "lf1.0_shuf_gv" = @("--d-awl-strategy", "none", "--label-first-seq", "1.0", "--shuffle-hints", "--val-group-by-sentence")
     "grad_align" = @("--d-awl-strategy", "grad_align")
 }
 $Selected = @($ConfigTable.Keys)

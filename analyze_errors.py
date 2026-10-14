@@ -101,6 +101,8 @@ def main():
     ap.add_argument("--train-data", default="data/processed/restaurant14_train_implicit.json")
     ap.add_argument("--aux-data", default="data/auxiliary/restaurant14_train_implicit_aux_qwen7b_full.json")
     ap.add_argument("--test-data", default="data/processed/restaurant14_test_implicit.json")
+    ap.add_argument("--test-all-data", default="data/processed/restaurant14_test_all.json",
+                    help="test file with ALL rows (explicit + implicit), used in section 6")
     ap.add_argument("--val-fraction", type=float, default=0.15)
     ap.add_argument("--out", default="results/error_analysis.txt")
     ap.add_argument("--n-show", type=int, default=20)
@@ -251,6 +253,84 @@ def main():
         log("RESULT: the generator's first-iteration polarity is NOT stored in the aux json, so its no-hint "
             "accuracy cannot be computed.\nOnly refinement_iterations / converged are stored "
             "(converged at iteration 1 may mean the first answer was accepted, but that is not stored as such).")
+    log()
+
+    # ================= 6. multi-target sentences: always-wrong vs always-right =================
+    log("=" * 78 + "\n6. OTHER TARGETS IN THE SAME SENTENCE (always-wrong vs always-right)\n" + "=" * 78)
+    if os.path.exists(args.test_all_data):
+        all_rows = json.load(open(args.test_all_data, encoding="utf-8"))
+        log(f"test file with all rows: {args.test_all_data} ({len(all_rows)} rows, "
+            f"{sum(bool(r.get('is_implicit')) for r in all_rows)} implicit)")
+    else:
+        all_rows = list(test.values())
+        log(f"NOTE: {args.test_all_data} not found -> using the IMPLICIT test file ({len(all_rows)} rows); "
+            "'other targets' are then only the other implicit targets.")
+    by_key, by_sent = defaultdict(list), defaultdict(list)
+    for r in all_rows:
+        k = r.get("sentence_id") or prefix(r.get("id", ""))
+        by_key[k].append(r)
+        by_sent[norm(r["sentence"])].append(r)
+
+    def others_of(i):
+        t = test.get(i)
+        if t is None:
+            return None, None
+        rows, how = by_key.get(prefix(i)), "id"
+        if not rows:
+            rows, how = by_sent.get(norm(t["sentence"])), "sentence text"
+        if not rows:
+            return None, None
+        return [r for r in rows if norm(r["target"]) != norm(t["target"])], how
+
+    info, via, miss = {}, Counter(), 0
+    for i in err:
+        o, how = others_of(i)
+        if o is None:
+            miss += 1
+        else:
+            info[i] = o
+            via[how] += 1
+    log(f"test samples matched to their sentence in that file: {len(info)}/{len(err)} "
+        f"(via {dict(via)}; unmatched {miss}). 'Other targets' = rows of the same sentence whose target "
+        "text differs.")
+    log()
+    log(f"{'group':<14}{'gold':<10}{'n':<6}{'has other target':<20}{'others gold: pos/neg/neu':<28}{'mean #others'}")
+    for gname, ids_ in (("always-wrong", wrong), ("always-right", right)):
+        for gl in range(3):
+            sel = [i for i in ids_ if gold[i] == gl and i in info]
+            if not sel:
+                log(f"{gname:<14}{LABELS[gl]:<10}{0:<6}")
+                continue
+            multi = [i for i in sel if info[i]]
+            oc = Counter(LABELS.index(r["gold_polarity"].lower()) for i in multi for r in info[i])
+            log(f"{gname:<14}{LABELS[gl]:<10}{len(sel):<6}"
+                f"{len(multi)}/{len(sel)} ({100*len(multi)/len(sel):.0f}%)".ljust(20)
+                + f"{oc[0]}/{oc[1]}/{oc[2]}".ljust(28)
+                + f"{np.mean([len(info[i]) for i in sel]):.2f}")
+    log()
+    ex = [i for i in sorted(wrong, key=lambda i: (-err[i], i)) if gold[i] == 2 and info.get(i)]
+    log(f"always-wrong gold-neutral samples with other targets: {len(ex)} (showing {min(10, len(ex))})")
+    for i in ex[:10]:
+        t = test[i]
+        top = Counter(preds[i]).most_common(1)[0][0]
+        log(f"- {i} | err {err[i]:.2f} | most common pred {LABELS[top]}")
+        log(f"    sentence: {t['sentence']}")
+        log(f"    this target: {t['target']} [{t['gold_polarity']}]")
+        log("    other targets: " + "; ".join(f"{r['target']} [{r['gold_polarity']}]" for r in info[i]))
+    log()
+    log("CLASS DISTRIBUTION")
+    def dist(name, gs):
+        c = Counter(gs); n = max(1, sum(c.values()))
+        log(f"{name:<44}{n:<7}" + " | ".join(f"{l} {c[l]} ({100*c[l]/n:.1f}%)" for l in LABELS))
+    dist("train pool (implicit, with aux; used for training)", [x["gold_polarity"].lower() for x in with_aux])
+    if test:
+        dist("test implicit (what the runs are scored on)", [t["gold_polarity"].lower() for t in test.values()])
+    dist(f"test file of section 6 ({os.path.basename(args.test_all_data)})",
+         [r["gold_polarity"].lower() for r in all_rows])
+    tr_all = args.train_data.replace("_implicit", "_all")
+    if os.path.exists(tr_all) and tr_all != args.train_data:
+        dist(f"train all rows ({os.path.basename(tr_all)})",
+             [r["gold_polarity"].lower() for r in json.load(open(tr_all, encoding="utf-8"))])
     log()
 
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)

@@ -97,6 +97,50 @@ def make_validation_split(instances: List[Dict], fraction: float, seed: int):
     return train, val
 
 
+def sentence_group(inst: Dict) -> str:
+    """Source-sentence key: '<sentence id>_aspect_<k>' -> '<sentence id>'."""
+    i = inst["id"]
+    return i.rsplit("_aspect_", 1)[0] if "_aspect_" in i else i
+
+
+def make_grouped_validation_split(instances: List[Dict], fraction: float, seed: int):
+    """Validation split that keeps every sentence (all its targets) on ONE side.
+    Per-class target counts are the same as in make_validation_split; whole sentence groups
+    are added to val (in seeded random order) whenever that brings the class counts closer
+    to the targets (L1 distance), so classes stay roughly stratified."""
+    rng = random.Random(seed)
+    classes = list(POLARITY_TO_ID)
+    total = Counter(x["gold_polarity"].lower() for x in instances)
+    target = {c: (max(1, int(round(total[c] * fraction))) if total[c] else 0) for c in classes}
+
+    groups: Dict[str, List[Dict]] = {}
+    for x in instances:
+        groups.setdefault(sentence_group(x), []).append(x)
+    keys = sorted(groups)          # fixed order -> reproducible
+    rng.shuffle(keys)
+
+    def dist(cnt):
+        return sum(abs(target[c] - cnt[c]) for c in classes)
+
+    val_keys, cnt = [], Counter()
+    for k in keys:
+        if dist(cnt) == 0:
+            break
+        g = Counter(x["gold_polarity"].lower() for x in groups[k])
+        new = cnt + g
+        if dist(new) < dist(cnt):
+            val_keys.append(k)
+            cnt = new
+    if not val_keys:               # tiny debug sets: take the smallest group
+        val_keys = [min(keys, key=lambda k: len(groups[k]))]
+    vk = set(val_keys)
+    val = [x for k in keys if k in vk for x in groups[k]]
+    train = [x for k in keys if k not in vk for x in groups[k]]
+    rng.shuffle(train)
+    rng.shuffle(val)
+    return train, val
+
+
 def has_unk_label(aux: Dict, tok) -> bool:
     """True if an aspect/opinion label can't be represented by the T5 tokenizer
     (e.g. Chinese text from the generator) - it would train on <unk>/empty targets."""
@@ -401,6 +445,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--train-data", default="data/processed/restaurants_train_implicit.json")
     ap.add_argument("--aux-data", default="data/auxiliary/restaurants_train_implicit_aux.json")
+    ap.add_argument("--val-group-by-sentence", action="store_true",
+                    help="Split validation by whole sentences (id prefix before '_aspect_') so no "
+                         "sentence is in both train and val. Default: split by instance.")
     ap.add_argument("--val-data", default=None,
                     help="Optional separate validation JSON; otherwise split from train.")
     ap.add_argument("--test-data", default=None,
@@ -508,11 +555,25 @@ def main():
         with_aux = with_aux[: args.max_instances]
 
     if args.val_data:
+        if args.val_group_by_sentence:
+            logger.warning("--val-group-by-sentence ignored: --val-data was given.")
         val_instances = [x for x in load_json(args.val_data) if keep(x)]
         train_instances = with_aux
     else:
-        train_instances, val_instances = make_validation_split(
-            with_aux, args.validation_fraction, args.seed)
+        if args.val_group_by_sentence:
+            train_instances, val_instances = make_grouped_validation_split(
+                with_aux, args.validation_fraction, args.seed)
+            tr_sent = {sentence_group(x) for x in train_instances}
+            shared = sum(1 for g in {sentence_group(x) for x in val_instances} if g in tr_sent)
+            logger.info("--val-group-by-sentence: val %d rows / %d sentences | classes %s | "
+                        "sentences shared with train: %d",
+                        len(val_instances), len({sentence_group(x) for x in val_instances}),
+                        dict(Counter(x["gold_polarity"].lower() for x in val_instances)), shared)
+            if shared:
+                raise RuntimeError(f"{shared} sentences are in both train and val")
+        else:
+            train_instances, val_instances = make_validation_split(
+                with_aux, args.validation_fraction, args.seed)
 
     if args.drop_nonconverged:
         before = len(train_instances)
