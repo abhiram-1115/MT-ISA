@@ -303,10 +303,9 @@ def main():
                 continue
             multi = [i for i in sel if info[i]]
             oc = Counter(LABELS.index(r["gold_polarity"].lower()) for i in multi for r in info[i])
-            log(f"{gname:<14}{LABELS[gl]:<10}{len(sel):<6}"
-                f"{len(multi)}/{len(sel)} ({100*len(multi)/len(sel):.0f}%)".ljust(20)
-                + f"{oc[0]}/{oc[1]}/{oc[2]}".ljust(28)
-                + f"{np.mean([len(info[i]) for i in sel]):.2f}")
+            frac = f"{len(multi)}/{len(sel)} ({100*len(multi)/len(sel):.0f}%)"
+            log(f"{gname:<14}{LABELS[gl]:<10}{len(sel):<6}{frac:<20}"
+                f"{f'{oc[0]}/{oc[1]}/{oc[2]}':<28}{np.mean([len(info[i]) for i in sel]):.2f}")
     log()
     ex = [i for i in sorted(wrong, key=lambda i: (-err[i], i)) if gold[i] == 2 and info.get(i)]
     log(f"always-wrong gold-neutral samples with other targets: {len(ex)} (showing {min(10, len(ex))})")
