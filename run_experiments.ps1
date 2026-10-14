@@ -16,6 +16,9 @@
 # Switches:  -Smoke      1 epoch, 64 instances, seed 1 only, outputs go to models_smoke\
 #            -NoBf16     disable bf16 (auto-enabled when CUDA is available)
 #            -KeepCkpt   keep best.pt of every run (~1 GB each; deleted by default)
+#            -Dataset laptop   laptop14 (only configs with --train-all, e.g. polonly_all_gv,
+#                              mtisa_in_all_gv); outputs go to models_laptop\, logs_laptop\,
+#                              results_laptop\ so restaurant results are never mixed in.
 # Options:   -Lr 1e-4 -SeedList "1,2345,2" -Configs "grad_align,polonly" -Epochs 20 -BatchSize 32 -Accum 1 -Train ... -Aux ... -Test ... -Model ...
 #
 # Re-running is safe: finished runs (test_metrics.json exists) are skipped.
@@ -33,27 +36,51 @@ param(
     [int]$Accum = 1,
     [string]$Lr = "1e-4",
     [string]$SeedList = "1,2,3,4,5,6,7,8,9,10",
-    [string]$Configs = ""
+    [string]$Configs = "",
+    [ValidateSet("restaurant", "laptop")][string]$Dataset = "restaurant",
+    [string]$TrainAll = "",
+    [string]$TestAll = "",
+    [string]$TrainAllAux = ""
 )
 
 $ErrorActionPreference = "Continue"
 $env:PYTHONUNBUFFERED = "1"
 $env:PYTHONIOENCODING = "utf-8"
 
-$ModelsDir  = "models"
+# ---- dataset-dependent paths (explicit -Train/-Aux/-Test/... still win) -----
+$Suffix = ""
+if ($Dataset -eq "laptop") {
+    $Suffix = "_laptop"
+    if (-not $PSBoundParameters.ContainsKey("Train")) { $Train = "data/processed/laptop14_train_all.json" }
+    if (-not $PSBoundParameters.ContainsKey("Test"))  { $Test  = "data/processed/laptop14_test_implicit.json" }
+    if (-not $PSBoundParameters.ContainsKey("Aux"))   { $Aux   = "" }   # no implicit-only aux for laptop
+    if ($TrainAll -eq "")    { $TrainAll    = "data/processed/laptop14_train_all.json" }
+    if ($TestAll -eq "")     { $TestAll     = "data/processed/laptop14_test_all.json" }
+    if ($TrainAllAux -eq "") { $TrainAllAux = "data/auxiliary/laptop14_train_all_aux_qwen7b_full.json" }
+} else {
+    if ($TrainAll -eq "")    { $TrainAll    = "data/processed/restaurant14_train_all.json" }
+    if ($TestAll -eq "")     { $TestAll     = "data/processed/restaurant14_test_all.json" }
+    if ($TrainAllAux -eq "") { $TrainAllAux = "data/auxiliary/restaurant14_train_all_aux_qwen7b_full.json" }
+}
+
+$ModelsDir  = "models$Suffix"
+$LogsDir    = "logs$Suffix"
+$ResultsDir = "results$Suffix"
 $ExtraFlags = @()
 if ($Smoke) {
     $Epochs = 1
-    $ModelsDir = "models_smoke"
+    $ModelsDir = "models_smoke$Suffix"
     $ExtraFlags = @("--max-instances", "64")
     Write-Host "[SMOKE MODE] 1 epoch, 64 instances, outputs in $ModelsDir/"
 }
 
-New-Item -ItemType Directory -Force -Path "logs", "results", $ModelsDir | Out-Null
-Start-Transcript -Path "logs_master.txt" -Append | Out-Null
+New-Item -ItemType Directory -Force -Path $LogsDir, $ResultsDir, "results", $ModelsDir | Out-Null
+Start-Transcript -Path "logs_master$Suffix.txt" -Append | Out-Null
 
 # ---- pre-flight checks ------------------------------------------------------
-foreach ($f in @($Train, $Aux, $Test, "train_mt_isa.py", "mt_isa_model.py", "summarize.py")) {
+$PreFiles = @($Test, "train_mt_isa.py", "mt_isa_model.py", "summarize.py")
+if ($Dataset -eq "restaurant") { $PreFiles += @($Train, $Aux) }
+foreach ($f in $PreFiles) {
     if (-not (Test-Path $f)) {
         Write-Host "ERROR: missing file $f"
         Stop-Transcript | Out-Null
@@ -78,15 +105,17 @@ $AllTimer = [System.Diagnostics.Stopwatch]::StartNew()
 function Invoke-Train {
     param([string]$Tag, [int]$Bs, [int]$Acc, [string]$Lr, [int]$Seed, [string[]]$Extra)
     $a = @("train_mt_isa.py",
-           "--train-data", $Train, "--aux-data", $Aux, "--test-data", $Test,
+           "--train-data", $Train, "--test-data", $Test,
+           "--train-all-data", $TrainAll, "--test-all-data", $TestAll,
            "--model-name", $Model,
            "--batch-size", "$Bs", "--grad-accum", "$Acc",
            "--num-epochs", "$Epochs", "--lr", $Lr, "--seed", "$Seed",
            "--output-dir", "$ModelsDir/exp_$Tag")
+    if ($Aux -ne "") { $a += @("--aux-data", $Aux) }
     if ($Bf16) { $a += "--bf16" }
     if ($ExtraFlags.Count -gt 0) { $a += $ExtraFlags }
     if ($Extra -and $Extra.Count -gt 0) { $a += $Extra }
-    & python @a 2>&1 | ForEach-Object { $_.ToString() } | Tee-Object -FilePath "logs/$Tag.log" -Append
+    & python @a 2>&1 | ForEach-Object { $_.ToString() } | Tee-Object -FilePath "$LogsDir/$Tag.log" -Append
 }
 
 function Invoke-Run {
@@ -110,7 +139,7 @@ function Invoke-Run {
         Write-Host ("[done] $tag in {0:N0}s" -f $timer.Elapsed.TotalSeconds)
         if (-not $KeepCkpt) { Remove-Item "$out/best.pt" -ErrorAction SilentlyContinue }
     } else {
-        Write-Host "[FAILED] $tag - see logs/$tag.log"
+        Write-Host "[FAILED] $tag - see $LogsDir/$tag.log"
     }
 }
 
@@ -155,6 +184,8 @@ $ConfigTable = [ordered]@{
     "lf1.0_gv"   = @("--d-awl-strategy", "none", "--label-first-seq", "1.0", "--val-group-by-sentence")
     "lf1.0_shuf_gv" = @("--d-awl-strategy", "none", "--label-first-seq", "1.0", "--shuffle-hints", "--val-group-by-sentence")
     "polonly_all_gv" = @("--polarity-only", "--train-all", "--val-group-by-sentence")
+    "mtisa_in_all_gv" = @("--d-awl-strategy", "input", "--train-all", "--val-group-by-sentence", "--train-all-aux", $TrainAllAux)
+    "aux0.3_all_gv" = @("--d-awl-strategy", "none", "--aux-weight", "0.3", "--train-all", "--val-group-by-sentence", "--train-all-aux", $TrainAllAux)
     "grad_align" = @("--d-awl-strategy", "grad_align")
 }
 $Selected = @($ConfigTable.Keys)
@@ -167,6 +198,25 @@ if ($Configs.Trim() -ne "") {
         exit 1
     }
 }
+# configs that read the *_all files need those files (and laptop supports only such configs)
+$needAll = @($Selected | Where-Object { $ConfigTable[$_] -contains "--train-all" })
+if ($Dataset -eq "laptop" -and $needAll.Count -ne $Selected.Count) {
+    $bad = @($Selected | Where-Object { $needAll -notcontains $_ })
+    Write-Host "ERROR: -Dataset laptop supports only configs with --train-all (e.g. polonly_all_gv, mtisa_in_all_gv, aux0.3_all_gv). Not supported: $($bad -join ', ')"
+    Stop-Transcript | Out-Null
+    exit 1
+}
+$chk = @()
+if ($needAll.Count -gt 0) { $chk += @($TrainAll, $TestAll) }
+if (@($Selected | Where-Object { $ConfigTable[$_] -contains "--train-all-aux" }).Count -gt 0) { $chk += $TrainAllAux }
+foreach ($f in $chk) {
+    if (-not (Test-Path $f)) {
+        Write-Host "ERROR: missing file $f"
+        Stop-Transcript | Out-Null
+        exit 1
+    }
+}
+Write-Host "Dataset: $Dataset | models: $ModelsDir | logs: $LogsDir | results: $ResultsDir"
 $Seeds = @($SeedList -split "[,\s]+" | Where-Object { $_ -ne "" } | ForEach-Object { [int]$_ })
 if ($Smoke) { $Seeds = @(1) }
 Write-Host "Configs: $($Selected -join ', ') | seeds: $($Seeds -join ',')"
@@ -184,14 +234,14 @@ foreach ($s in $Seeds) {
 # =============================================================================
 Write-Host ""
 Write-Host "=================== SUMMARY ==================="
-python summarize.py $ModelsDir results
+python summarize.py $ModelsDir $ResultsDir
 
 # bundle the small files (logs + metrics) into results\bundle.zip
-$stage = "results/bundle"
+$stage = "$ResultsDir/bundle"
 if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $stage | Out-Null
-Copy-Item "logs" "$stage/logs" -Recurse -ErrorAction SilentlyContinue
-Copy-Item "results/summary.txt", "results/summary.csv" $stage -ErrorAction SilentlyContinue
+Copy-Item $LogsDir "$stage/logs" -Recurse -ErrorAction SilentlyContinue
+Copy-Item "$ResultsDir/summary.txt", "$ResultsDir/summary.csv" $stage -ErrorAction SilentlyContinue
 Get-ChildItem "$ModelsDir" -Directory -Filter "exp_*" | ForEach-Object {
     $dest = Join-Path $stage $_.Name
     New-Item -ItemType Directory -Force -Path $dest | Out-Null
@@ -200,10 +250,10 @@ Get-ChildItem "$ModelsDir" -Directory -Filter "exp_*" | ForEach-Object {
         if (Test-Path $p) { Copy-Item $p $dest }
     }
 }
-Compress-Archive -Path "$stage/*" -DestinationPath "results/bundle.zip" -Force
+Compress-Archive -Path "$stage/*" -DestinationPath "$ResultsDir/bundle.zip" -Force
 Remove-Item $stage -Recurse -Force
 
 Write-Host ""
 Write-Host ("Total time: {0:N0} min" -f $AllTimer.Elapsed.TotalMinutes)
-Write-Host "Send me: results\summary.txt  (and results\bundle.zip for the full logs)"
+Write-Host "Send me: $ResultsDir\summary.txt  (and $ResultsDir\bundle.zip for the full logs)"
 Stop-Transcript | Out-Null

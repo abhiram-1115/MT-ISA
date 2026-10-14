@@ -221,6 +221,7 @@ class MTISADataset(Dataset):
         conf_override: Optional[Dict[str, Dict[str, float]]] = None,
         mask_nonconverged: bool = False,
         label_first_seq: bool = False,
+        aux_valid: Optional[Dict[str, bool]] = None,
     ):
         self.instances = instances
         self.tok = tokenizer
@@ -228,6 +229,7 @@ class MTISADataset(Dataset):
         self.conf_source = conf_source
         self.mask_nonconverged = mask_nonconverged
         self.label_first_seq = label_first_seq
+        self.aux_valid = aux_valid  # id -> False: zero this row's aspect/opinion loss (train-all-aux)
         self.conf_override = conf_override  # id -> {"aspect_confidence", "opinion_confidence"}
         self.max_length = max_length
         self.label_max_length = label_max_length
@@ -260,7 +262,7 @@ class MTISADataset(Dataset):
         }
 
         if self.aux_by_id is not None:
-            aux = self.aux_by_id[inst["id"]]
+            aux = self.aux_by_id.get(inst["id"]) or {}   # {} only happens for masked rows
             aspect_text = (aux.get("aspect") or "").strip() or target
             opinion_text = (aux.get("opinion") or "").strip() or "none"
             if self.label_first_seq:
@@ -268,8 +270,13 @@ class MTISADataset(Dataset):
                 item["polarity_labels"] = self._enc(
                     label_first_target(gold, aspect_text, opinion_text), self.label_max_length)
                 return item
-            if self.mask_nonconverged:
-                item["aux_mask"] = 1.0 if aux.get("converged", False) else 0.0
+            if self.mask_nonconverged or self.aux_valid is not None:
+                m = 1.0
+                if self.aux_valid is not None and not self.aux_valid.get(inst["id"], False):
+                    m = 0.0
+                if self.mask_nonconverged and not aux.get("converged", False):
+                    m = 0.0
+                item["aux_mask"] = m
             item.update({
                 "aspect_input_ids": self._enc(aspect_prompt(sentence, target), self.max_length),
                 "aspect_labels": self._enc(aspect_text, self.label_max_length),
@@ -452,8 +459,12 @@ def main():
                          "sentence is in both train and val. Default: split by instance.")
     ap.add_argument("--train-all", action="store_true",
                     help="Train on ALL rows of --train-all-data (explicit + implicit), no implicit/aux/"
-                         "<unk> filters. Needs --polarity-only. Validation = sentence-grouped split. "
+                         "<unk> filters. Needs --polarity-only or --train-all-aux. Validation = sentence-grouped split. "
                          "Also scores the best checkpoint on --test-all-data (test_metrics_all.json).")
+    ap.add_argument("--train-all-aux", default=None, metavar="PATH",
+                    help="With --train-all: aux json (keyed by instance_id) for ALL rows, enables aux "
+                         "tasks. Rows are NOT dropped for missing/empty/<unk> aux; their aspect/opinion "
+                         "loss is zeroed instead (denominator = batch size).")
     ap.add_argument("--train-all-data", default="data/processed/restaurant14_train_all.json")
     ap.add_argument("--test-all-data", default="data/processed/restaurant14_test_all.json")
     ap.add_argument("--val-data", default=None,
@@ -532,12 +543,18 @@ def main():
     if args.shuffle_hints and args.polarity_only:
         logger.warning("--shuffle-hints has no effect with --polarity-only.")
     has_aux_tasks = not args.polarity_only and args.label_first_seq is None
+    if args.train_all_aux and not args.train_all:
+        raise ValueError("--train-all-aux needs --train-all.")
     if args.train_all:
         bad = [n for n, on in (("--drop-nonconverged", args.drop_nonconverged),
-                               ("--val-data", bool(args.val_data))) if on]
-        if not args.polarity_only:
-            raise ValueError("--train-all is only allowed with --polarity-only "
-                             "(aux hints exist only for the implicit rows).")
+                               ("--val-data", bool(args.val_data)),
+                               ("--shuffle-hints", args.shuffle_hints),
+                               ("--label-first-seq", args.label_first_seq is not None)) if on]
+        if args.polarity_only and args.train_all_aux:
+            raise ValueError("--train-all-aux has no use with --polarity-only; drop one of them.")
+        if not args.polarity_only and not args.train_all_aux:
+            raise ValueError("--train-all needs --polarity-only or --train-all-aux "
+                             "(aux hints exist only for the rows in that file).")
         if bad:
             raise ValueError("--train-all cannot be combined with: " + ", ".join(bad))
         if not args.test_data:
@@ -568,12 +585,18 @@ def main():
 
     if args.train_all:
         train_all = ensure_id(load_json(args.train_all_data))
-        aux_rows, aux_by_id = [], {}
+        if args.train_all_aux:
+            aux_rows = load_json(args.train_all_aux)
+            aux_by_id = {a["instance_id"]: a for a in aux_rows}
+            describe_aux(aux_rows)
+        else:
+            aux_rows, aux_by_id = [], {}
         pool = [x for x in train_all if keep_any(x)]
-        with_aux = pool   # polarity-only: no aux-availability filter
+        with_aux = pool   # no aux-availability filter: rows are identical to the polonly run
         logger.info("--train-all (%s): rows %d | valid polarity %d | aux-availability filter: "
-                    "skipped (%d -> %d)", args.train_all_data, len(train_all), len(pool),
-                    len(pool), len(with_aux))
+                    "skipped (%d -> %d) | rows with an aux record: %d",
+                    args.train_all_data, len(train_all), len(pool), len(pool), len(with_aux),
+                    sum(1 for x in pool if x["id"] in aux_by_id))
     else:
         train_all = load_json(args.train_data)
         aux_rows = load_json(args.aux_data)
@@ -618,7 +641,7 @@ def main():
         logger.info("Dropped non-converged from train: %d -> %d", before, len(train_instances))
 
     if args.aux_mask_nonconverged and not args.polarity_only:
-        nc = sum(1 for x in train_instances if not aux_by_id[x["id"]].get("converged", False))
+        nc = sum(1 for x in train_instances if not aux_by_id.get(x["id"], {}).get("converged", False))
         logger.info("aux mask: %d/%d train rows non-converged -> aux loss 0 (denominator = batch size)",
                     nc, len(train_instances))
     label_stats(train_instances, "train")
@@ -636,6 +659,30 @@ def main():
         logger.info("Dropped train rows whose aux labels contain <unk> (non-English text): %d -> %d",
                     before, len(train_instances))
     collate = make_collate(tokenizer.pad_token_id)
+
+    train_aux_valid = None
+    if args.train_all and args.train_all_aux:
+        # keep every row (identical to polonly_all_gv); rows without usable aux get aux loss 0
+        train_aux_valid, why = {}, Counter()
+        for x in train_instances:
+            a = aux_by_id.get(x["id"])
+            if a is None:
+                status = "missing"
+            elif not (a.get("aspect") or "").strip() or not (a.get("opinion") or "").strip():
+                status = "empty"
+            elif has_unk_label(a, tokenizer):
+                status = "unk"
+            else:
+                status = "ok"
+            train_aux_valid[x["id"]] = status == "ok"
+            why[status] += 1
+        n_mask = len(train_instances) - why["ok"]
+        logger.info("--train-all-aux: %d train rows kept | aux loss MASKED (set to 0) for %d rows "
+                    "(%.1f%%): missing %d, empty aspect/opinion %d, <unk> %d | usable %d | "
+                    "aux losses are averaged over ALL rows in the batch",
+                    len(train_instances), n_mask, 100 * n_mask / max(1, len(train_instances)),
+                    why["missing"], why["empty"], why["unk"], why["ok"])
+        label_stats(train_instances, "train (after aux masking, rows unchanged)")
 
     if args.shuffle_hints and not args.polarity_only:
         ids_ = [x["id"] for x in train_instances]
@@ -671,8 +718,8 @@ def main():
     conf_override = None
     if args.conf_source in ("shuffle", "constant") and has_aux_tasks:
         ids_ = [x["id"] for x in train_instances]
-        stored = [(clean_conf(aux_by_id[i].get("aspect_confidence")),
-                   clean_conf(aux_by_id[i].get("opinion_confidence"))) for i in ids_]
+        stored = [(clean_conf(aux_by_id.get(i, {}).get("aspect_confidence")),
+                   clean_conf(aux_by_id.get(i, {}).get("opinion_confidence"))) for i in ids_]
         if args.conf_source == "shuffle":
             # one permutation for both tasks: marginals preserved, link to instance broken
             perm = np.random.RandomState(args.seed).permutation(len(ids_))
@@ -690,7 +737,8 @@ def main():
                             None if args.polarity_only else aux_by_id,
                             args.conf_source, args.max_length, conf_override=conf_override,
                             mask_nonconverged=args.aux_mask_nonconverged and not args.polarity_only,
-                            label_first_seq=args.label_first_seq is not None)
+                            label_first_seq=args.label_first_seq is not None,
+                            aux_valid=train_aux_valid)
     val_ds = MTISADataset(val_instances, tokenizer, None, args.conf_source, args.max_length)
     loader_kw = dict(collate_fn=collate, num_workers=args.num_workers,
                      pin_memory=torch.cuda.is_available())
@@ -719,7 +767,7 @@ def main():
     use_ga = args.d_awl_strategy == "grad_align" and not args.polarity_only
     if use_ga and args.aux_weight is not None:
         raise ValueError("--aux-weight and --d-awl-strategy grad_align are mutually exclusive.")
-    ga_meta = ({x["id"]: bool(aux_by_id[x["id"]].get("converged", False))
+    ga_meta = ({x["id"]: bool(aux_by_id.get(x["id"], {}).get("converged", False))
                 for x in train_instances} if use_ga else None)
 
     if args.label_first_seq is not None:
