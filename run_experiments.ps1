@@ -19,6 +19,9 @@
 #            -Dataset laptop   laptop14 (only configs with --train-all, e.g. polonly_all_gv,
 #                              mtisa_in_all_gv); outputs go to models_laptop\, logs_laptop\,
 #                              results_laptop\ so restaurant results are never mixed in.
+#            lora_pol / lora_mtl / lora_mtl_shuf call train_lora_cls.py (Qwen2.5-3B LoRA, needs
+#            peft and transformers >= 4.37; lr 2e-4, 3 epochs, batch 8 x 2); their folders are
+#            exp_<name>_lr2e-4_s<seed>.
 # Options:   -Lr 1e-4 -SeedList "1,2345,2" -Configs "grad_align,polonly" -Epochs 20 -BatchSize 32 -Accum 1 -Train ... -Aux ... -Test ... -Model ...
 #
 # Re-running is safe: finished runs (test_metrics.json exists) are skipped.
@@ -103,16 +106,27 @@ $AllTimer = [System.Diagnostics.Stopwatch]::StartNew()
 
 # ---- one training run -------------------------------------------------------
 function Invoke-Train {
-    param([string]$Tag, [int]$Bs, [int]$Acc, [string]$Lr, [int]$Seed, [string[]]$Extra)
-    $a = @("train_mt_isa.py",
-           "--train-data", $Train, "--test-data", $Test,
-           "--train-all-data", $TrainAll, "--test-all-data", $TestAll,
-           "--model-name", $Model,
-           "--batch-size", "$Bs", "--grad-accum", "$Acc",
-           "--num-epochs", "$Epochs", "--lr", $Lr, "--seed", "$Seed",
-           "--output-dir", "$ModelsDir/exp_$Tag")
-    if ($Aux -ne "") { $a += @("--aux-data", $Aux) }
-    if ($Bf16) { $a += "--bf16" }
+    param([string]$Tag, [int]$Bs, [int]$Acc, [string]$Lr, [int]$Seed, [string[]]$Extra, [bool]$Lora = $false)
+    if ($Lora) {
+        # LoRA runs (train_lora_cls.py): Qwen2.5-3B, 3 epochs (1 in -Smoke), lr 2e-4, bf16 built in
+        $ep = 3
+        if ($Smoke) { $ep = 1 }
+        $a = @("train_lora_cls.py", "--dataset", $Dataset,
+               "--test-data", $Test, "--train-all-data", $TrainAll, "--test-all-data", $TestAll,
+               "--batch-size", "$Bs", "--grad-accum", "$Acc",
+               "--num-epochs", "$ep", "--lr", $Lr, "--seed", "$Seed",
+               "--output-dir", "$ModelsDir/exp_$Tag")
+    } else {
+        $a = @("train_mt_isa.py",
+               "--train-data", $Train, "--test-data", $Test,
+               "--train-all-data", $TrainAll, "--test-all-data", $TestAll,
+               "--model-name", $Model,
+               "--batch-size", "$Bs", "--grad-accum", "$Acc",
+               "--num-epochs", "$Epochs", "--lr", $Lr, "--seed", "$Seed",
+               "--output-dir", "$ModelsDir/exp_$Tag")
+        if ($Aux -ne "") { $a += @("--aux-data", $Aux) }
+        if ($Bf16) { $a += "--bf16" }
+    }
     if ($ExtraFlags.Count -gt 0) { $a += $ExtraFlags }
     if ($Extra -and $Extra.Count -gt 0) { $a += $Extra }
     & python @a 2>&1 | ForEach-Object { $_.ToString() } | Tee-Object -FilePath "$LogsDir/$Tag.log" -Append
@@ -130,10 +144,13 @@ function Invoke-Run {
     Write-Host ""
     Write-Host "=================== [run] $tag   $(Get-Date) ==================="
     $timer = [System.Diagnostics.Stopwatch]::StartNew()
-    Invoke-Train -Tag $tag -Bs $BatchSize -Acc $Accum -Lr $Lr -Seed $Seed -Extra $Extra
+    $isLora = $LoraConfigs -contains $Name
+    $bs1 = $BatchSize; $ac1 = $Accum; $bs2 = 16; $ac2 = 2
+    if ($isLora) { $bs1 = 8; $ac1 = 2; $bs2 = 4; $ac2 = 4 }
+    Invoke-Train -Tag $tag -Bs $bs1 -Acc $ac1 -Lr $Lr -Seed $Seed -Extra $Extra -Lora $isLora
     if (-not (Test-Path $metrics)) {
-        Write-Host "[retry] $tag failed; retrying with batch 16 x accum 2 (possible OOM)"
-        Invoke-Train -Tag $tag -Bs 16 -Acc 2 -Lr $Lr -Seed $Seed -Extra $Extra
+        Write-Host "[retry] $tag failed; retrying with batch $bs2 x accum $ac2 (possible OOM)"
+        Invoke-Train -Tag $tag -Bs $bs2 -Acc $ac2 -Lr $Lr -Seed $Seed -Extra $Extra -Lora $isLora
     }
     if (Test-Path $metrics) {
         Write-Host ("[done] $tag in {0:N0}s" -f $timer.Elapsed.TotalSeconds)
@@ -162,6 +179,8 @@ function Get-BestByVal {
 # Main grid: fixed LR, seeds 1..10, every config
 # Folder naming stays exp_<name>_lr<lr>_s<seed> so summarize.py still works.
 # =============================================================================
+# configs that call train_lora_cls.py (Qwen2.5-3B LoRA; folder tag uses lr 2e-4)
+$LoraConfigs = @("lora_pol", "lora_mtl", "lora_mtl_shuf")
 $ConfigTable = [ordered]@{
     "polonly"    = @("--polarity-only")
     "mtl_tawl"   = @("--d-awl-strategy", "none")
@@ -186,6 +205,9 @@ $ConfigTable = [ordered]@{
     "polonly_all_gv" = @("--polarity-only", "--train-all", "--val-group-by-sentence")
     "mtisa_in_all_gv" = @("--d-awl-strategy", "input", "--train-all", "--val-group-by-sentence", "--train-all-aux", $TrainAllAux)
     "aux0.3_all_gv" = @("--d-awl-strategy", "none", "--aux-weight", "0.3", "--train-all", "--val-group-by-sentence", "--train-all-aux", $TrainAllAux)
+    "lora_pol"      = @("--tasks", "pol")
+    "lora_mtl"      = @("--tasks", "mtl", "--train-all-aux", $TrainAllAux)
+    "lora_mtl_shuf" = @("--tasks", "mtl", "--train-all-aux", $TrainAllAux, "--shuffle-hints")
     "grad_align" = @("--d-awl-strategy", "grad_align")
 }
 $Selected = @($ConfigTable.Keys)
@@ -199,7 +221,12 @@ if ($Configs.Trim() -ne "") {
     }
 }
 # configs that read the *_all files need those files (and laptop supports only such configs)
-$needAll = @($Selected | Where-Object { $ConfigTable[$_] -contains "--train-all" })
+$needAll = @($Selected | Where-Object { ($ConfigTable[$_] -contains "--train-all") -or ($LoraConfigs -contains $_) })
+if (@($Selected | Where-Object { $LoraConfigs -contains $_ }).Count -gt 0 -and -not (Test-Path "train_lora_cls.py")) {
+    Write-Host "ERROR: missing file train_lora_cls.py"
+    Stop-Transcript | Out-Null
+    exit 1
+}
 if ($Dataset -eq "laptop" -and $needAll.Count -ne $Selected.Count) {
     $bad = @($Selected | Where-Object { $needAll -notcontains $_ })
     Write-Host "ERROR: -Dataset laptop supports only configs with --train-all (e.g. polonly_all_gv, mtisa_in_all_gv, aux0.3_all_gv). Not supported: $($bad -join ', ')"
@@ -224,7 +251,9 @@ Write-Host "Configs: $($Selected -join ', ') | seeds: $($Seeds -join ',')"
 # seed-major order: every config gets seed 1 before any gets seed 2
 foreach ($s in $Seeds) {
     foreach ($name in $Selected) {
-        Invoke-Run $name $Lr $s $ConfigTable[$name]
+        $lrUse = $Lr
+        if ($LoraConfigs -contains $name) { $lrUse = "2e-4" }
+        Invoke-Run $name $lrUse $s $ConfigTable[$name]
     }
 }
 
