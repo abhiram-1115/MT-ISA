@@ -1,0 +1,204 @@
+ERROR ANALYSIS | lr=1e-4 | 108 runs, 18 configs: aux0.1(6), aux0.3(6), aux0.3_shufhints(6), aux1.0(6), aux_conv0.3(6), grad_align(6), in_const(6), in_shuffle(6), in_stored(6), lf0.1(6), lf0.3(6), lf0.3_shuf(6), lf1.0(6), mtl_tawl(6), out_const(6), out_shuffle(6), out_stored(6), polonly(6)
+test rows with data file: 267
+
+==============================================================================
+1. CONFUSION MATRICES
+==============================================================================
+polonly only  (6 runs, 1602 predictions)
+gold/pred     positive  negative  neutral   recall
+positive      384       38        34        0.842
+negative      49        211       64        0.651
+neutral       278       108       436       0.530
+overall acc 0.6436 | macro recall 0.6746
+
+ALL runs  (108 runs, 28836 predictions)
+gold/pred     positive  negative  neutral   recall
+positive      6996      755       457       0.852
+negative      874       4001      957       0.686
+neutral       5100      2106      7590      0.513
+overall acc 0.6446 | macro recall 0.6838
+
+==============================================================================
+2. PER-SAMPLE ERROR RATE (all runs)
+==============================================================================
+samples: 267 | wrong in >=90% of runs: 62 (23.2%) | right in >=90%: 136 (50.9%) | in between: 69 (25.8%)
+always-wrong by gold label: {'positive': 6, 'negative': 8, 'neutral': 48}
+always-wrong (gold -> most common pred): {'neutral->positive': 33, 'neutral->negative': 15, 'positive->negative': 5, 'negative->positive': 5, 'negative->neutral': 3, 'positive->neutral': 1}
+mean error rate per sample: 0.3554
+
+20 always-wrong samples (highest error rate first):
+- 11350390#802808#3_aspect_264 | err 1.00 | gold negative | most common pred neutral (108/108)
+    target: food
+    sentence: I have never in my life sent back food before, but I simply had to, and the waiter argued with me over this.
+- 11351328#1638529#4_aspect_173 | err 1.00 | gold neutral | most common pred negative (108/108)
+    target: staff person
+    sentence: I had to flag down a third staff person for a fork... so now it's goodbye Little RUDE Pie Company.
+- 11351354#412616#1_aspect_210 | err 1.00 | gold positive | most common pred negative (108/108)
+    target: quality of food
+    sentence: The service, however, is a peg or two below the quality of food (horrible bartenders), and the clientele, for the most part, are rowdy, loud-mouthed commuters (this could explain the bad attitudes from the staff) getting loaded for an AC/DC concert or a Knicks game.
+- 11351399#0#7_aspect_171 | err 1.00 | gold neutral | most common pred positive (108/108)
+    target: sweet corn-foie gras brulee
+    sentence: Menus feature seasonal picks, like sweet corn-foie gras brulee.
+- 11351814#1650882#5_aspect_111 | err 1.00 | gold neutral | most common pred positive (108/108)
+    target: booth by the windows
+    sentence: The other times I've gone it's romantic date heaven, you can walk in get a booth by the windows, be treated like a VIP in a not-crowded place, with great food and service.
+- 11351819#985076#2_aspect_162 | err 1.00 | gold negative | most common pred positive (108/108)
+    target: Waiting
+    sentence: Waiting three hours before getting our entrees was a treat as well.
+- 11359790#823900#3_aspect_97 | err 1.00 | gold neutral | most common pred negative (108/108)
+    target: manager
+    sentence: The manager then told us we could order from whatever menu we wanted but by that time we were so annoyed with the waiter and the resturant that we let and went some place else.
+- 11482070#503858#1_aspect_64 | err 1.00 | gold negative | most common pred positive (108/108)
+    target: menu
+    sentence: Everytime I go there I can't pick anything to eat and not because the menu is filled with great things to eat.
+- 11482070#503858#2_aspect_202 | err 1.00 | gold neutral | most common pred negative (108/108)
+    target: waiter
+    sentence: I always find myself asking the waiter to make something bland and different than what is on the menu.
+- 15094232#1295193#2_aspect_189 | err 1.00 | gold neutral | most common pred positive (108/108)
+    target: entrees
+    sentence: Not only was the sushi fresh, they also served other entrees allowed each guest something to choose from and we all left happy (try the duck!
+- 32892130#435512#2_aspect_101 | err 1.00 | gold neutral | most common pred positive (108/108)
+    target: candlelight
+    sentence: There's candlelight and music.
+- 32897564#894393#1_aspect_231 | err 1.00 | gold neutral | most common pred positive (108/108)
+    target: dabs of real mozzarella
+    sentence: The sauce is excellent (very fresh) with dabs of real mozzarella.
+- 32899282#556036#1_aspect_245 | err 1.00 | gold neutral | most common pred positive (108/108)
+    target: served
+    sentence: They are served on Focacchia bread and are to die for.
+- 32899414#512291#3_aspect_149 | err 1.00 | gold neutral | most common pred negative (108/108)
+    target: asian fusion
+    sentence: Cuisine is billed as asian fusion - doesn't meet the bill.
+- 32938896#0#2_aspect_198 | err 1.00 | gold neutral | most common pred positive (108/108)
+    target: side orders
+    sentence: Build a meal with side orders like Amazin' Greens salads, Buffalo Chicken Kickers and Cinna Stix.
+- 33070286#1133164#3_aspect_107 | err 1.00 | gold neutral | most common pred positive (108/108)
+    target: WAITERS
+    sentence: THEY HAVE WAITERS ON THE SIDEWALK TRYING TO PULL YOU IN WHICH MADE US SUSPICIOUS.
+- 33070588#0#2_aspect_199 | err 1.00 | gold neutral | most common pred positive (108/108)
+    target: meaty chili
+    sentence: Thick fries, meaty chili and stuffed baked potatoes round out a menu that includes a cool, ultra-thick chocolate Frosty.
+- 33070588#0#2_aspect_200 | err 1.00 | gold neutral | most common pred positive (108/108)
+    target: stuffed baked potatoes
+    sentence: Thick fries, meaty chili and stuffed baked potatoes round out a menu that includes a cool, ultra-thick chocolate Frosty.
+- 33071731#1007204#5_aspect_93 | err 1.00 | gold neutral | most common pred negative (108/108)
+    target: waitress
+    sentence: When she complained, the waitress said, Sorry.
+- 35158410#1207085#2_aspect_187 | err 1.00 | gold neutral | most common pred positive (108/108)
+    target: sauce cart
+    sentence: They bring a sauce cart up to your table and offer you up to 7 or 8 choices of sauces for your steak (I tried them ALL).
+
+==============================================================================
+3. MAJORITY-VOTE SEED ENSEMBLE vs SINGLE-RUN MEAN
+==============================================================================
+config              n   single acc          ens acc   single F1           ens F1    ties  
+polonly             6   0.6436+/-0.0190     0.6404    0.6398+/-0.0163     0.6344    10    
+aux0.1              6   0.6454+/-0.0145     0.6367    0.6409+/-0.0159     0.6307    5     
+aux0.3              6   0.6442+/-0.0177     0.6442    0.6406+/-0.0176     0.6397    12    
+aux0.3_shufhints    6   0.6536+/-0.0113     0.6442    0.6469+/-0.0108     0.6378    9     
+aux1.0              6   0.6454+/-0.0131     0.6404    0.6468+/-0.0144     0.6421    12    
+aux_conv0.3         6   0.6355+/-0.0125     0.6367    0.6333+/-0.0112     0.6327    7     
+grad_align          6   0.6486+/-0.0211     0.6554    0.6465+/-0.0221     0.6519    12    
+in_const            6   0.6442+/-0.0272     0.6442    0.6419+/-0.0295     0.6392    8     
+in_shuffle          6   0.6486+/-0.0249     0.6292    0.6472+/-0.0239     0.6266    11    
+in_stored           6   0.6404+/-0.0230     0.6367    0.6410+/-0.0230     0.6365    11    
+lf0.1               6   0.6330+/-0.0225     0.6442    0.6319+/-0.0210     0.6409    11    
+lf0.3               6   0.6473+/-0.0112     0.6629    0.6445+/-0.0124     0.6586    13    
+lf0.3_shuf          6   0.6454+/-0.0223     0.6404    0.6417+/-0.0208     0.6360    10    
+lf1.0               6   0.6642+/-0.0210     0.6742    0.6606+/-0.0218     0.6688    14    
+mtl_tawl            6   0.6398+/-0.0282     0.6442    0.6378+/-0.0278     0.6411    10    
+out_const           6   0.6411+/-0.0219     0.6404    0.6397+/-0.0245     0.6372    5     
+out_shuffle         6   0.6386+/-0.0249     0.6367    0.6379+/-0.0272     0.6340    6     
+out_stored          6   0.6436+/-0.0280     0.6442    0.6411+/-0.0288     0.6402    3     
+(ties: samples where the vote was tied; broken by the lowest seed's prediction among tied labels)
+
+==============================================================================
+4. DOES VALIDATION SHARE SENTENCES WITH TRAIN?
+==============================================================================
+Split code (train_mt_isa.py): make_validation_split(with_aux, 0.15, seed) shuffles INSTANCES stratified by polarity;
+it never groups by sentence. Run uses no --val-data, so val comes from this split.
+id format: '<sentence id>_aspect_<k>' (e.g. '296_aspect_3'): prefix = source sentence, k = k-th target in it.
+check on train pool (1030 rows): 659 distinct prefixes, 240 with >1 row; 240/240 multi-row prefixes have one identical sentence.
+rows whose sentence occurs in >1 row of the pool: 611/1030
+seed 1      train 876 val 154 | val rows with sentence also in train: 56.5% | with sentence-id prefix also in train: 56.5%
+seed 2      train 876 val 154 | val rows with sentence also in train: 55.8% | with sentence-id prefix also in train: 55.8%
+seed 3      train 876 val 154 | val rows with sentence also in train: 57.1% | with sentence-id prefix also in train: 57.1%
+seed 4      train 876 val 154 | val rows with sentence also in train: 50.0% | with sentence-id prefix also in train: 50.0%
+seed 5      train 876 val 154 | val rows with sentence also in train: 51.3% | with sentence-id prefix also in train: 51.3%
+seed 2345   train 876 val 154 | val rows with sentence also in train: 53.9% | with sentence-id prefix also in train: 53.9%
+mean over 6 seeds: sentence 54.1% (min 50.0, max 57.1)
+(train side measured before the <unk>-label filter, which drops very few rows)
+for reference: test rows whose sentence appears in the train pool: 0.0%
+
+==============================================================================
+5. GENERATOR FIRST-ANSWER ACCURACY (no-hint)
+==============================================================================
+aux record fields: aspect(1030), aspect_confidence(1030), converged(1030), gold_polarity(1030), instance_id(1030), opinion(1030), opinion_confidence(1030), refinement_iterations(1030), sentence(1030), target(1030)
+fields that could hold a first-iteration polarity: ['gold_polarity']
+aux gold_polarity == train gold_polarity: 1030/1030 (100.0%) -> it is the gold label, not a generator prediction
+refinement_iterations: {1: 560, 2: 157, 3: 58, 4: 33, 5: 222} | converged 840/1030 (81.6%)
+RESULT: the generator's first-iteration polarity is NOT stored in the aux json, so its no-hint accuracy cannot be computed.
+Only refinement_iterations / converged are stored (converged at iteration 1 may mean the first answer was accepted, but that is not stored as such).
+
+==============================================================================
+6. OTHER TARGETS IN THE SAME SENTENCE (always-wrong vs always-right)
+==============================================================================
+test file with all rows: data/processed/restaurant14_test_all.json (1120 rows, 267 implicit)
+test samples matched to their sentence in that file: 267/267 (via {'id': 267}; unmatched 0). 'Other targets' = rows of the same sentence whose target text differs.
+
+group         gold      n     has other target    others gold: pos/neg/neu    mean #others
+always-wrong  positive  6     4/6 (67%)           6/4/0                       1.67
+always-wrong  negative  8     4/8 (50%)           0/2/2                       0.50
+always-wrong  neutral   48    40/48 (83%)         23/14/63                    2.08
+always-right  positive  58    43/58 (74%)         67/1/5                      1.26
+always-right  negative  29    20/29 (69%)         2/20/15                     1.28
+always-right  neutral   49    38/49 (78%)         6/13/44                     1.29
+
+always-wrong gold-neutral samples with other targets: 40 (showing 10)
+- 11351328#1638529#4_aspect_173 | err 1.00 | most common pred negative
+    sentence: I had to flag down a third staff person for a fork... so now it's goodbye Little RUDE Pie Company.
+    this target: staff person [neutral]
+    other targets: fork [neutral]
+- 11351399#0#7_aspect_171 | err 1.00 | most common pred positive
+    sentence: Menus feature seasonal picks, like sweet corn-foie gras brulee.
+    this target: sweet corn-foie gras brulee [neutral]
+    other targets: Menus [neutral]
+- 11351814#1650882#5_aspect_111 | err 1.00 | most common pred positive
+    sentence: The other times I've gone it's romantic date heaven, you can walk in get a booth by the windows, be treated like a VIP in a not-crowded place, with great food and service.
+    this target: booth by the windows [neutral]
+    other targets: place [positive]; food [positive]; service [positive]
+- 11359790#823900#3_aspect_97 | err 1.00 | most common pred negative
+    sentence: The manager then told us we could order from whatever menu we wanted but by that time we were so annoyed with the waiter and the resturant that we let and went some place else.
+    this target: manager [neutral]
+    other targets: waiter [negative]; menu [neutral]
+- 11482070#503858#2_aspect_202 | err 1.00 | most common pred negative
+    sentence: I always find myself asking the waiter to make something bland and different than what is on the menu.
+    this target: waiter [neutral]
+    other targets: menu [neutral]
+- 15094232#1295193#2_aspect_189 | err 1.00 | most common pred positive
+    sentence: Not only was the sushi fresh, they also served other entrees allowed each guest something to choose from and we all left happy (try the duck!
+    this target: entrees [neutral]
+    other targets: sushi [positive]; duck [positive]
+- 32892130#435512#2_aspect_101 | err 1.00 | most common pred positive
+    sentence: There's candlelight and music.
+    this target: candlelight [neutral]
+    other targets: music [neutral]
+- 32897564#894393#1_aspect_231 | err 1.00 | most common pred positive
+    sentence: The sauce is excellent (very fresh) with dabs of real mozzarella.
+    this target: dabs of real mozzarella [neutral]
+    other targets: sauce [positive]
+- 32899282#556036#1_aspect_245 | err 1.00 | most common pred positive
+    sentence: They are served on Focacchia bread and are to die for.
+    this target: served [neutral]
+    other targets: Focacchia bread [neutral]
+- 32899414#512291#3_aspect_149 | err 1.00 | most common pred negative
+    sentence: Cuisine is billed as asian fusion - doesn't meet the bill.
+    this target: asian fusion [neutral]
+    other targets: Cuisine [negative]; bill [negative]; billed [negative]
+
+CLASS DISTRIBUTION
+train pool (implicit, with aux; used for training)1030   positive 353 (34.3%) | negative 256 (24.9%) | neutral 421 (40.9%)
+test implicit (what the runs are scored on) 267    positive 76 (28.5%) | negative 54 (20.2%) | neutral 137 (51.3%)
+test file of section 6 (restaurant14_test_all.json)1120   positive 728 (65.0%) | negative 196 (17.5%) | neutral 196 (17.5%)
+train all rows (restaurant14_train_all.json)3602   positive 2164 (60.1%) | negative 805 (22.3%) | neutral 633 (17.6%)
+

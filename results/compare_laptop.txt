@@ -1,0 +1,5 @@
+﻿175 test samples aligned by id; 12 runs
+
+config        n   acc                 macro-F1            dAcc vs polonly_all_gv        dF1 vs polonly_all_gv         
+polonly_all_gv6   0.7438 +/- 0.0249   0.7052 +/- 0.0101   
+mtisa_in_all_gv6   0.7600 +/- 0.0217   0.7222 +/- 0.0211   +0.0163 [-0.0029,+0.0352] p=0.096+0.0170 [-0.0056,+0.0405] p=0.135

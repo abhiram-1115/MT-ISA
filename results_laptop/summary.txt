@@ -1,0 +1,19 @@
+PER RUN
+name            lr      seed  test_acc  test_F1   val_F1    best_ep 
+mtisa_in_all_gv 1e-4    6     0.7943    0.7563    0.8417    4       
+mtisa_in_all_gv 1e-4    7     0.7543    0.7197    0.7974    18      
+mtisa_in_all_gv 1e-4    8     0.7429    0.7007    0.7855    15      
+mtisa_in_all_gv 1e-4    9     0.7543    0.7270    0.8513    5       
+mtisa_in_all_gv 1e-4    10    0.7771    0.7297    0.7854    5       
+mtisa_in_all_gv 1e-4    11    0.7371    0.6994    0.7959    9       
+polonly_all_gv  1e-4    6     0.7143    0.6874    0.8359    4       
+polonly_all_gv  1e-4    7     0.7486    0.7048    0.8023    9       
+polonly_all_gv  1e-4    8     0.7314    0.7030    0.7883    14      
+polonly_all_gv  1e-4    9     0.7429    0.7135    0.8437    16      
+polonly_all_gv  1e-4    10    0.7886    0.7161    0.7926    3       
+polonly_all_gv  1e-4    11    0.7371    0.7067    0.7701    18      
+
+GROUPED (mean +/- std over seeds; n = number of seeds)
+name            lr      n   test_acc            test_F1             
+mtisa_in_all_gv 1e-4    6   0.7600 +/- 0.0217   0.7222 +/- 0.0211   
+polonly_all_gv  1e-4    6   0.7438 +/- 0.0249   0.7052 +/- 0.0101   
