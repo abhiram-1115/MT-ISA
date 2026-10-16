@@ -19,6 +19,7 @@
 #            -Dataset laptop   laptop14 (only configs with --train-all, e.g. polonly_all_gv,
 #                              mtisa_in_all_gv); outputs go to models_laptop\, logs_laptop\,
 #                              results_laptop\ so restaurant results are never mixed in.
+#            lora7b_pol = Qwen2.5-7B-Instruct in 4-bit (needs bitsandbytes), batch 4 x 4.
 #            lora_pol / lora_mtl / lora_mtl_shuf call train_lora_cls.py (Qwen2.5-3B LoRA, needs
 #            peft and transformers >= 4.37; lr 2e-4, 3 epochs, batch 8 x 2); their folders are
 #            exp_<name>_lr2e-4_s<seed>.
@@ -147,6 +148,7 @@ function Invoke-Run {
     $isLora = $LoraConfigs -contains $Name
     $bs1 = $BatchSize; $ac1 = $Accum; $bs2 = 16; $ac2 = 2
     if ($isLora) { $bs1 = 8; $ac1 = 2; $bs2 = 4; $ac2 = 4 }
+    if ($Name -like "lora7b*") { $bs1 = 4; $ac1 = 4; $bs2 = 2; $ac2 = 8 }   # 7B in 4-bit
     Invoke-Train -Tag $tag -Bs $bs1 -Acc $ac1 -Lr $Lr -Seed $Seed -Extra $Extra -Lora $isLora
     if (-not (Test-Path $metrics)) {
         Write-Host "[retry] $tag failed; retrying with batch $bs2 x accum $ac2 (possible OOM)"
@@ -154,7 +156,8 @@ function Invoke-Run {
     }
     if (Test-Path $metrics) {
         Write-Host ("[done] $tag in {0:N0}s" -f $timer.Elapsed.TotalSeconds)
-        if (-not $KeepCkpt) { Remove-Item "$out/best.pt" -ErrorAction SilentlyContinue }
+        # LoRA adapters are small and prior_correct.py needs them -> only T5 checkpoints are deleted
+        if (-not $KeepCkpt -and -not $isLora) { Remove-Item "$out/best.pt" -ErrorAction SilentlyContinue }
     } else {
         Write-Host "[FAILED] $tag - see $LogsDir/$tag.log"
     }
@@ -180,7 +183,7 @@ function Get-BestByVal {
 # Folder naming stays exp_<name>_lr<lr>_s<seed> so summarize.py still works.
 # =============================================================================
 # configs that call train_lora_cls.py (Qwen2.5-3B LoRA; folder tag uses lr 2e-4)
-$LoraConfigs = @("lora_pol", "lora_mtl", "lora_mtl_shuf")
+$LoraConfigs = @("lora_pol", "lora_mtl", "lora_mtl_shuf", "lora7b_pol")
 $ConfigTable = [ordered]@{
     "polonly"    = @("--polarity-only")
     "mtl_tawl"   = @("--d-awl-strategy", "none")
@@ -208,6 +211,7 @@ $ConfigTable = [ordered]@{
     "lora_pol"      = @("--tasks", "pol")
     "lora_mtl"      = @("--tasks", "mtl", "--train-all-aux", $TrainAllAux)
     "lora_mtl_shuf" = @("--tasks", "mtl", "--train-all-aux", $TrainAllAux, "--shuffle-hints")
+    "lora7b_pol"    = @("--tasks", "pol", "--model-name", "Qwen/Qwen2.5-7B-Instruct", "--load-4bit", "--eval-batch-size", "8")
     "grad_align" = @("--d-awl-strategy", "grad_align")
 }
 $Selected = @($ConfigTable.Keys)

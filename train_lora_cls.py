@@ -179,6 +179,55 @@ def eval_rows(rows, tok, args, device, first_ids, use_amp, model, collate, desc)
 
 
 # ----------------------------------------------------------------------------
+def build_model(args, device):
+    """Base LLM + LoRA adapters (fp32). Shared with prior_correct.py so inference rebuilds the
+    exact training architecture.  --load-4bit: bitsandbytes nf4 + double quant, bf16 compute,
+    peft prepare_model_for_kbit_training (which also turns on gradient checkpointing)."""
+    from peft import LoraConfig, get_peft_model
+    from transformers import AutoModelForCausalLM
+    if getattr(args, "load_4bit", False):
+        try:
+            from transformers import BitsAndBytesConfig
+            from peft import prepare_model_for_kbit_training
+            import bitsandbytes  # noqa: F401
+        except ImportError as e:
+            raise SystemExit("--load-4bit needs bitsandbytes (pip install -U bitsandbytes): " + str(e))
+        bnb = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",
+                                 bnb_4bit_use_double_quant=True,
+                                 bnb_4bit_compute_dtype=torch.bfloat16)
+        model = AutoModelForCausalLM.from_pretrained(
+            args.model_name, quantization_config=bnb, torch_dtype=torch.bfloat16,
+            device_map={"": device.index if device.index is not None else 0})
+        model.config.use_cache = False
+        try:
+            model = prepare_model_for_kbit_training(
+                model, use_gradient_checkpointing=True,
+                gradient_checkpointing_kwargs={"use_reentrant": False})
+        except TypeError:   # older peft
+            model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
+        logger.info("loaded %s in 4-bit nf4 (double quant, bf16 compute)", args.model_name)
+    else:
+        model = AutoModelForCausalLM.from_pretrained(args.model_name, torch_dtype=torch.bfloat16).to(device)
+        model.config.use_cache = False
+        try:
+            model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+        except TypeError:
+            model.gradient_checkpointing_enable()
+        model.enable_input_require_grads()  # needed for checkpointing with a frozen embedding
+    lcfg = LoraConfig(r=args.lora_r, lora_alpha=args.lora_alpha, lora_dropout=args.lora_dropout,
+                      target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
+                                      "gate_proj", "up_proj", "down_proj"],
+                      task_type="CAUSAL_LM")
+    model = get_peft_model(model, lcfg)
+    trainable = [p for p in model.parameters() if p.requires_grad]
+    for p in trainable:            # fp32 adapters: bf16 weights would swallow small updates
+        p.data = p.data.float()
+    n_tr = sum(p.numel() for p in trainable)
+    logger.info("trainable LoRA params: %.2fM of %.2fM", n_tr / 1e6,
+                sum(p.numel() for p in model.parameters()) / 1e6)
+    return model, trainable
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--tasks", choices=["pol", "mtl"], default="pol")
@@ -189,6 +238,9 @@ def main():
     ap.add_argument("--test-data", default=None, help="implicit test file (main metric)")
     ap.add_argument("--test-all-data", default=None, help="all test rows (extra metric)")
     ap.add_argument("--model-name", default="Qwen/Qwen2.5-3B-Instruct")
+    ap.add_argument("--load-4bit", action="store_true",
+                    help="load the base model in 4-bit (bitsandbytes nf4, double quant, bf16 compute) "
+                         "for bigger models, e.g. --model-name Qwen/Qwen2.5-7B-Instruct")
     ap.add_argument("--unk-tokenizer", default="google/flan-t5-base",
                     help="tokenizer used for the <unk> aux check, so the masked rows are the same "
                          "as in train_mt_isa.py (Qwen's byte-level BPE has no <unk>)")
@@ -351,25 +403,8 @@ def main():
         logger.info("[%s] input : %s", k, tok.decode(ex[k][0]))
         logger.info("[%s] target: %r", k, tok.decode(ex[k][1]))
 
-    # ---- model: bf16 base + LoRA on all linear layers ----
-    model = AutoModelForCausalLM.from_pretrained(args.model_name, torch_dtype=torch.bfloat16).to(device)
-    model.config.use_cache = False
-    try:
-        model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
-    except TypeError:
-        model.gradient_checkpointing_enable()
-    model.enable_input_require_grads()  # needed for checkpointing with a frozen embedding
-    lcfg = LoraConfig(r=args.lora_r, lora_alpha=args.lora_alpha, lora_dropout=args.lora_dropout,
-                      target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
-                                      "gate_proj", "up_proj", "down_proj"],
-                      task_type="CAUSAL_LM")
-    model = get_peft_model(model, lcfg)
-    trainable = [p for p in model.parameters() if p.requires_grad]
-    for p in trainable:            # fp32 adapters: bf16 weights would swallow small updates
-        p.data = p.data.float()
-    n_tr = sum(p.numel() for p in trainable)
-    logger.info("trainable LoRA params: %.2fM of %.2fM", n_tr / 1e6,
-                sum(p.numel() for p in model.parameters()) / 1e6)
+    # ---- model: bf16 base (optionally 4-bit) + LoRA on all linear layers ----
+    model, trainable = build_model(args, device)
 
     optimizer = AdamW(trainable, lr=args.lr, weight_decay=0.0)
     steps_per_epoch = math.ceil(len(train_loader) / args.grad_accum)
