@@ -529,6 +529,10 @@ def main():
                     help="Label smoothing on the 3-class polarity CE (needs --polarity-only). "
                          "With EPS>0 or --kd-probs the polarity train loss is the 3-class CE on the "
                          "step-0 label logits instead of the full-vocab token NLL.")
+    ap.add_argument("--polarity-ce3", action="store_true",
+                    help="Polarity train loss = plain 3-class CE on the step-0 label logits (the "
+                         "--label-smoothing/--kd-probs path with no smoothing and no KD). "
+                         "Needs --polarity-only.")
     ap.add_argument("--label-first-seq", type=float, default=None, metavar="W",
                     help="One decoder target '<label>. aspect: <a>. opinion: <o>.' per example; "
                          "loss_i = nll_label + W * mean NLL of the later tokens (incl. </s>), "
@@ -561,9 +565,10 @@ def main():
     if args.shuffle_hints and args.polarity_only:
         logger.warning("--shuffle-hints has no effect with --polarity-only.")
     has_aux_tasks = not args.polarity_only and args.label_first_seq is None
-    use_cls = args.kd_probs is not None or args.label_smoothing > 0
+    use_cls = args.kd_probs is not None or args.label_smoothing > 0 or args.polarity_ce3
     if use_cls and not args.polarity_only:
-        raise ValueError("--kd-probs / --label-smoothing are only supported with --polarity-only.")
+        raise ValueError("--kd-probs / --label-smoothing / --polarity-ce3 are only supported "
+                         "with --polarity-only.")
     if not (0.0 <= args.kd_alpha <= 1.0) or args.kd_temp <= 0 or not (0.0 <= args.label_smoothing < 1.0):
         raise ValueError("need 0 <= --kd-alpha <= 1, --kd-temp > 0, 0 <= --label-smoothing < 1")
     if args.train_all_aux and not args.train_all:

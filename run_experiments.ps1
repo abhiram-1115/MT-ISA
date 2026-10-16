@@ -217,6 +217,7 @@ $ConfigTable = [ordered]@{
     "lora_mtl"      = @("--tasks", "mtl", "--train-all-aux", $TrainAllAux)
     "lora_mtl_shuf" = @("--tasks", "mtl", "--train-all-aux", $TrainAllAux, "--shuffle-hints")
     "lora7b_pol"    = @("--tasks", "pol", "--model-name", "Qwen/Qwen2.5-7B-Instruct", "--load-4bit", "--eval-batch-size", "8")
+    "ce_all_gv"  = @("--polarity-only", "--train-all", "--val-group-by-sentence", "--polarity-ce3")
     "kd_all_gv"  = @("--polarity-only", "--train-all", "--val-group-by-sentence", "--kd-probs", $TeacherProbs)
     "ls_all_gv"  = @("--polarity-only", "--train-all", "--val-group-by-sentence", "--label-smoothing", "0.1")
     "grad_align" = @("--d-awl-strategy", "grad_align")
