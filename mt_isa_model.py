@@ -146,7 +146,8 @@ class MTISAModel(nn.Module):
         self.ga_ema = ga_ema            # EMA decay of the polarity gradient (grad_align)
         self.label_first_w = None       # float -> label-first-seq training loss (see forward)
         self.ga_warmup = False          # True -> grad_align uses weight 1 (set per epoch by trainer)
-        # 3-class polarity loss on the step-0 label logits (polarity-only; set by the trainer):
+        # 3-class polarity loss on the step-0 label logits (set by the trainer; KD/smoothing are
+        # polarity-only, plain CE (--polarity-ce3) also feeds the aux-task combination below):
         #   cls_loss=True -> CE(gold) with label_smoothing, plus KD when kd_probs are given
         self.cls_loss = False
         self.label_smoothing = 0.0
