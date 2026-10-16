@@ -1,0 +1,17 @@
+PRIOR CORRECTION | dataset=restaurant | models=models | lr tag 2e-4
+raw = argmax; prior = p*p_target/p_train (p_target = implicit train rows); valbias = scalar b on the neutral log-prob, grid [-3,3] step 0.1, chosen on the implicit val rows. No test labels used for fitting.
+
+==============================================================================
+lora_pol | seeds [6, 7, 8, 9, 10, 11] | n_test 267
+==============================================================================
+method    acc                 macro-F1            recall pos/neg/neu (all seeds pooled)
+raw       0.7372 +/- 0.0145   0.7340 +/- 0.0171   0.904/0.722/0.651
+prior     0.7578 +/- 0.0120   0.7414 +/- 0.0128   0.866/0.620/0.752
+valbias   0.7228 +/- 0.0349   0.7201 +/- 0.0312   0.908/0.728/0.618
+valbias b per seed: [0.7, 0.0, -2.3, -2.0, 0.2, 0.1] (mean -0.55); val F1 raw -> at b: 0.752->0.766, 0.837->0.837, 0.658->0.685, 0.741->0.782, 0.759->0.766, 0.671->0.677 | n_val_implicit [154, 158, 173, 151, 148, 149]
+p_train [0.601, 0.224, 0.175] | p_target [0.34, 0.244, 0.416] (seed 6; order ['positive', 'negative', 'neutral'])
+raw argmax vs test_predictions.json agreement: min 100.0%
+paired bootstrap over test samples (2000 resamples, metric averaged over seeds; difference vs raw, 95% CI, two-sided p):
+  prior - raw: dacc +0.0206 [+0.0000,+0.0412] p=0.051 | df1 +0.0073 [-0.0132,+0.0270] p=0.467
+  valbias - raw: dacc -0.0142 [-0.0250,-0.0044] p=0.004 | df1 -0.0138 [-0.0237,-0.0043] p=0.002
+
