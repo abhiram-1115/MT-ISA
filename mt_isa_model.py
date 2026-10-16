@@ -146,6 +146,12 @@ class MTISAModel(nn.Module):
         self.ga_ema = ga_ema            # EMA decay of the polarity gradient (grad_align)
         self.label_first_w = None       # float -> label-first-seq training loss (see forward)
         self.ga_warmup = False          # True -> grad_align uses weight 1 (set per epoch by trainer)
+        # 3-class polarity loss on the step-0 label logits (polarity-only; set by the trainer):
+        #   cls_loss=True -> CE(gold) with label_smoothing, plus KD when kd_probs are given
+        self.cls_loss = False
+        self.label_smoothing = 0.0
+        self.kd_alpha = 0.5
+        self.kd_temp = 2.0
         self._ga_params = None          # shared-subset params (last encoder + last decoder block)
         self._ga_ref = None             # EMA of the polarity gradient on that subset, fp32 flat
         self.d_awl_strategy = d_awl_strategy
@@ -285,6 +291,7 @@ class MTISAModel(nn.Module):
         opinion_labels: Optional[torch.Tensor] = None,
         opinion_confidence: Optional[torch.Tensor] = None,
         aux_mask: Optional[torch.Tensor] = None,
+        kd_probs: Optional[torch.Tensor] = None,
     ) -> Dict:
         outputs: Dict = {}
 
@@ -304,11 +311,28 @@ class MTISAModel(nn.Module):
             polarity_loss = (label_nll + self.label_first_w * rest_nll).mean()
         else:
             polarity_loss = self._per_sample_nll(pol.logits, polarity_labels).mean()
-        outputs["polarity_loss"] = polarity_loss
         # decoder step 0 predicts the first label token -> 3-way classification
         outputs["polarity_logits"] = (
             pol.logits[:, 0, :].index_select(-1, self.polarity_first_ids).float()
         )
+        if self.cls_loss and self.training:
+            # 3-class CE on the same logits used for evaluation (not the full vocab), with
+            # optional label smoothing and knowledge distillation (train only; the validation
+            # loss stays the token NLL above).
+            z = outputs["polarity_logits"]                                   # [B, 3] fp32
+            gold = (polarity_labels[:, :1] == self.polarity_first_ids.view(1, -1)).float().argmax(-1)
+            ce = F.cross_entropy(z, gold, label_smoothing=self.label_smoothing)
+            outputs["ce_loss"] = ce
+            if kd_probs is not None:
+                T, a = self.kd_temp, self.kd_alpha
+                t = F.softmax(torch.log(kd_probs.float().clamp_min(1e-8)) / T, dim=-1)  # teacher_T
+                log_s = F.log_softmax(z / T, dim=-1)
+                kl = (t * (torch.log(t.clamp_min(1e-12)) - log_s)).sum(-1).mean()        # KL(t || s)
+                outputs["kd_loss"] = kl
+                polarity_loss = (1.0 - a) * ce + a * (T ** 2) * kl
+            else:
+                polarity_loss = ce
+        outputs["polarity_loss"] = polarity_loss
 
         have_aux = aspect_input_ids is not None and opinion_input_ids is not None
         if not have_aux:

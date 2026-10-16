@@ -19,6 +19,8 @@
 #            -Dataset laptop   laptop14 (only configs with --train-all, e.g. polonly_all_gv,
 #                              mtisa_in_all_gv); outputs go to models_laptop\, logs_laptop\,
 #                              results_laptop\ so restaurant results are never mixed in.
+#            kd_all_gv uses -TeacherProbs (default data/teacher/<dataset>14_train_all_teacher_probs.json,
+#            made by teacher_folds.py in venv_lora).
 #            lora7b_pol = Qwen2.5-7B-Instruct in 4-bit (needs bitsandbytes), batch 4 x 4.
 #            lora_pol / lora_mtl / lora_mtl_shuf call train_lora_cls.py (Qwen2.5-3B LoRA, needs
 #            peft and transformers >= 4.37; lr 2e-4, 3 epochs, batch 8 x 2); their folders are
@@ -44,7 +46,8 @@ param(
     [ValidateSet("restaurant", "laptop")][string]$Dataset = "restaurant",
     [string]$TrainAll = "",
     [string]$TestAll = "",
-    [string]$TrainAllAux = ""
+    [string]$TrainAllAux = "",
+    [string]$TeacherProbs = ""
 )
 
 $ErrorActionPreference = "Continue"
@@ -61,10 +64,12 @@ if ($Dataset -eq "laptop") {
     if ($TrainAll -eq "")    { $TrainAll    = "data/processed/laptop14_train_all.json" }
     if ($TestAll -eq "")     { $TestAll     = "data/processed/laptop14_test_all.json" }
     if ($TrainAllAux -eq "") { $TrainAllAux = "data/auxiliary/laptop14_train_all_aux_qwen7b_full.json" }
+    if ($TeacherProbs -eq "") { $TeacherProbs = "data/teacher/laptop14_train_all_teacher_probs.json" }
 } else {
     if ($TrainAll -eq "")    { $TrainAll    = "data/processed/restaurant14_train_all.json" }
     if ($TestAll -eq "")     { $TestAll     = "data/processed/restaurant14_test_all.json" }
     if ($TrainAllAux -eq "") { $TrainAllAux = "data/auxiliary/restaurant14_train_all_aux_qwen7b_full.json" }
+    if ($TeacherProbs -eq "") { $TeacherProbs = "data/teacher/restaurant14_train_all_teacher_probs.json" }
 }
 
 $ModelsDir  = "models$Suffix"
@@ -212,6 +217,8 @@ $ConfigTable = [ordered]@{
     "lora_mtl"      = @("--tasks", "mtl", "--train-all-aux", $TrainAllAux)
     "lora_mtl_shuf" = @("--tasks", "mtl", "--train-all-aux", $TrainAllAux, "--shuffle-hints")
     "lora7b_pol"    = @("--tasks", "pol", "--model-name", "Qwen/Qwen2.5-7B-Instruct", "--load-4bit", "--eval-batch-size", "8")
+    "kd_all_gv"  = @("--polarity-only", "--train-all", "--val-group-by-sentence", "--kd-probs", $TeacherProbs)
+    "ls_all_gv"  = @("--polarity-only", "--train-all", "--val-group-by-sentence", "--label-smoothing", "0.1")
     "grad_align" = @("--d-awl-strategy", "grad_align")
 }
 $Selected = @($ConfigTable.Keys)
@@ -240,6 +247,7 @@ if ($Dataset -eq "laptop" -and $needAll.Count -ne $Selected.Count) {
 $chk = @()
 if ($needAll.Count -gt 0) { $chk += @($TrainAll, $TestAll) }
 if (@($Selected | Where-Object { $ConfigTable[$_] -contains "--train-all-aux" }).Count -gt 0) { $chk += $TrainAllAux }
+if (@($Selected | Where-Object { $ConfigTable[$_] -contains "--kd-probs" }).Count -gt 0) { $chk += $TeacherProbs }
 foreach ($f in $chk) {
     if (-not (Test-Path $f)) {
         Write-Host "ERROR: missing file $f"

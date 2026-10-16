@@ -222,6 +222,7 @@ class MTISADataset(Dataset):
         mask_nonconverged: bool = False,
         label_first_seq: bool = False,
         aux_valid: Optional[Dict[str, bool]] = None,
+        kd_probs: Optional[Dict[str, List[float]]] = None,
     ):
         self.instances = instances
         self.tok = tokenizer
@@ -230,6 +231,7 @@ class MTISADataset(Dataset):
         self.mask_nonconverged = mask_nonconverged
         self.label_first_seq = label_first_seq
         self.aux_valid = aux_valid  # id -> False: zero this row's aspect/opinion loss (train-all-aux)
+        self.kd_probs = kd_probs    # id -> teacher [p_pos, p_neg, p_neu] (--kd-probs)
         self.conf_override = conf_override  # id -> {"aspect_confidence", "opinion_confidence"}
         self.max_length = max_length
         self.label_max_length = label_max_length
@@ -260,6 +262,8 @@ class MTISADataset(Dataset):
             "polarity_labels": self._enc(gold, 8),
             "polarity_label_id": POLARITY_TO_ID[gold],
         }
+        if self.kd_probs is not None:
+            item["kd_probs"] = self.kd_probs[inst["id"]]
 
         if self.aux_by_id is not None:
             aux = self.aux_by_id.get(inst["id"]) or {}   # {} only happens for masked rows
@@ -302,6 +306,8 @@ def make_collate(pad_id: int):
         }
         if "aux_mask" in batch[0]:
             out["aux_mask"] = torch.tensor([b["aux_mask"] for b in batch], dtype=torch.float)
+        if "kd_probs" in batch[0]:
+            out["kd_probs"] = torch.tensor([b["kd_probs"] for b in batch], dtype=torch.float)
         prefixes = ["polarity"]
         if "aspect_input_ids" in batch[0]:
             prefixes += ["aspect", "opinion"]
@@ -342,8 +348,10 @@ def run_epoch(
 
     total_loss, n_ok, n_bad, consec_bad = 0.0, 0, 0, 0
     # label / rest only exist in --label-first-seq training (label-token NLL, rest-of-target NLL)
-    part_sum = {"aspect": 0.0, "opinion": 0.0, "polarity": 0.0, "label": 0.0, "rest": 0.0}
-    part_cnt = {"aspect": 0, "opinion": 0, "polarity": 0, "label": 0, "rest": 0}
+    # ce / kd only exist with --label-smoothing / --kd-probs (3-class CE and KD term)
+    part_sum = {"aspect": 0.0, "opinion": 0.0, "polarity": 0.0, "label": 0.0, "rest": 0.0,
+                "ce": 0.0, "kd": 0.0}
+    part_cnt = {"aspect": 0, "opinion": 0, "polarity": 0, "label": 0, "rest": 0, "ce": 0, "kd": 0}
     ids, gold, pred = [], [], []
     ga_sum: Dict[str, List[float]] = {}   # group -> [sum aspect w, sum opinion w, n]
 
@@ -511,6 +519,16 @@ def main():
                     help="Permute the aux records (aspect, opinion, confidences, converged) across "
                          "TRAIN instances (cyclic shift of a permutation seeded by --seed, so no "
                          "sentence keeps its own hints). Polarity task untouched.")
+    ap.add_argument("--kd-probs", default=None, metavar="PATH",
+                    help="Knowledge distillation (needs --polarity-only): JSON {instance_id: [p_pos, "
+                         "p_neg, p_neu]}. Loss = (1-a)*CE(gold) + a*T^2*KL(teacher_T || softmax(s/T)) "
+                         "on the 3 label first-token logits at decoder step 0.")
+    ap.add_argument("--kd-alpha", type=float, default=0.5)
+    ap.add_argument("--kd-temp", type=float, default=2.0)
+    ap.add_argument("--label-smoothing", type=float, default=0.0, metavar="EPS",
+                    help="Label smoothing on the 3-class polarity CE (needs --polarity-only). "
+                         "With EPS>0 or --kd-probs the polarity train loss is the 3-class CE on the "
+                         "step-0 label logits instead of the full-vocab token NLL.")
     ap.add_argument("--label-first-seq", type=float, default=None, metavar="W",
                     help="One decoder target '<label>. aspect: <a>. opinion: <o>.' per example; "
                          "loss_i = nll_label + W * mean NLL of the later tokens (incl. </s>), "
@@ -543,6 +561,11 @@ def main():
     if args.shuffle_hints and args.polarity_only:
         logger.warning("--shuffle-hints has no effect with --polarity-only.")
     has_aux_tasks = not args.polarity_only and args.label_first_seq is None
+    use_cls = args.kd_probs is not None or args.label_smoothing > 0
+    if use_cls and not args.polarity_only:
+        raise ValueError("--kd-probs / --label-smoothing are only supported with --polarity-only.")
+    if not (0.0 <= args.kd_alpha <= 1.0) or args.kd_temp <= 0 or not (0.0 <= args.label_smoothing < 1.0):
+        raise ValueError("need 0 <= --kd-alpha <= 1, --kd-temp > 0, 0 <= --label-smoothing < 1")
     if args.train_all_aux and not args.train_all:
         raise ValueError("--train-all-aux needs --train-all.")
     if args.train_all:
@@ -733,12 +756,34 @@ def main():
             logger.info("[%s conf] %s stored(a,o)=(%.2f,%.2f) -> used(a,o)=(%.2f,%.2f)",
                         args.conf_source, ids_[k], *stored[k], *used[k])
 
+    kd_train = None
+    if args.kd_probs:
+        teacher = load_json(args.kd_probs)
+        missing = [x["id"] for x in train_instances if x["id"] not in teacher]
+        if missing:
+            raise ValueError(f"{len(missing)}/{len(train_instances)} training rows have no teacher "
+                             f"probability in {args.kd_probs} (e.g. {missing[:3]})")
+        kd_train = {}
+        for x in train_instances:
+            p = np.asarray(teacher[x["id"]], dtype=float)
+            if p.shape != (3,) or not np.all(np.isfinite(p)) or p.min() < 0 or p.sum() <= 0:
+                raise ValueError(f"bad teacher probability for {x['id']}: {teacher[x['id']]}")
+            kd_train[x["id"]] = (p / p.sum()).tolist()
+        gold_ids = np.array([POLARITY_TO_ID[x["gold_polarity"].lower()] for x in train_instances])
+        P = np.array([kd_train[x["id"]] for x in train_instances])
+        logger.info("--kd-probs %s: %d train rows | teacher argmax == gold: %.4f | mean teacher p(gold): "
+                    "%.4f | alpha %.2f T %.1f (order %s)", args.kd_probs, len(train_instances),
+                    float(np.mean(P.argmax(1) == gold_ids)),
+                    float(np.mean(P[np.arange(len(P)), gold_ids])), args.kd_alpha, args.kd_temp,
+                    POLARITY_WORDS)
+        del teacher
+
     train_ds = MTISADataset(train_instances, tokenizer,
                             None if args.polarity_only else aux_by_id,
                             args.conf_source, args.max_length, conf_override=conf_override,
                             mask_nonconverged=args.aux_mask_nonconverged and not args.polarity_only,
                             label_first_seq=args.label_first_seq is not None,
-                            aux_valid=train_aux_valid)
+                            aux_valid=train_aux_valid, kd_probs=kd_train)
     val_ds = MTISADataset(val_instances, tokenizer, None, args.conf_source, args.max_length)
     loader_kw = dict(collate_fn=collate, num_workers=args.num_workers,
                      pin_memory=torch.cuda.is_available())
@@ -770,6 +815,13 @@ def main():
     ga_meta = ({x["id"]: bool(aux_by_id.get(x["id"], {}).get("converged", False))
                 for x in train_instances} if use_ga else None)
 
+    if use_cls:
+        model.cls_loss = True
+        model.label_smoothing = args.label_smoothing
+        model.kd_alpha, model.kd_temp = args.kd_alpha, args.kd_temp
+        logger.info("polarity train loss: 3-class CE on step-0 label logits | label smoothing %.2f%s",
+                    args.label_smoothing,
+                    f" | KD alpha {args.kd_alpha} T {args.kd_temp}" if args.kd_probs else "")
     if args.label_first_seq is not None:
         model.label_first_w = args.label_first_seq
         logger.info("label-first-seq W=%g: train loss = nll_label + W * mean nll(rest); "
