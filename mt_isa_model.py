@@ -191,13 +191,20 @@ class MTISAModel(nn.Module):
         attention_mask: torch.Tensor,
         labels: torch.Tensor,
         confidence: Optional[torch.Tensor],
+        sample_weight: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
+        effective_weight = sample_weight if sample_weight is not None else confidence
         emb = self.backbone.get_input_embeddings()(input_ids)
-        emb = self.d_awl.scale_embeddings(emb, confidence)          # input strategy
+        emb = self.d_awl.scale_embeddings(emb, effective_weight)
         out = self.backbone(inputs_embeds=emb, attention_mask=attention_mask, labels=labels)
         per_sample = self._per_sample_nll(out.logits, labels)
-        per_sample = self.d_awl.weight_sample_losses(per_sample, confidence)  # output strategy
-        return per_sample.mean()
+        if sample_weight is None:
+            per_sample = self.d_awl.weight_sample_losses(per_sample, confidence)
+            return per_sample.mean()
+        if effective_weight is None or not self.d_awl.scales_output:
+            return per_sample.mean()
+        weights = self.d_awl.clean(effective_weight)
+        return (weights * per_sample).sum() / weights.sum().clamp(min=1e-8)
 
     # ---------------------------------------------------------------- forward
     def forward(
@@ -209,10 +216,12 @@ class MTISAModel(nn.Module):
         aspect_attention_mask: Optional[torch.Tensor] = None,
         aspect_labels: Optional[torch.Tensor] = None,
         aspect_confidence: Optional[torch.Tensor] = None,
+        aspect_weight: Optional[torch.Tensor] = None,
         opinion_input_ids: Optional[torch.Tensor] = None,
         opinion_attention_mask: Optional[torch.Tensor] = None,
         opinion_labels: Optional[torch.Tensor] = None,
         opinion_confidence: Optional[torch.Tensor] = None,
+        opinion_weight: Optional[torch.Tensor] = None,
     ) -> Dict:
         outputs: Dict = {}
 
@@ -236,10 +245,12 @@ class MTISAModel(nn.Module):
 
         # ---- auxiliary tasks ----
         aspect_loss = self._aux_loss(
-            aspect_input_ids, aspect_attention_mask, aspect_labels, aspect_confidence
+            aspect_input_ids, aspect_attention_mask, aspect_labels, aspect_confidence,
+            aspect_weight,
         )
         opinion_loss = self._aux_loss(
-            opinion_input_ids, opinion_attention_mask, opinion_labels, opinion_confidence
+            opinion_input_ids, opinion_attention_mask, opinion_labels, opinion_confidence,
+            opinion_weight,
         )
         outputs["aspect_loss"] = aspect_loss
         outputs["opinion_loss"] = opinion_loss

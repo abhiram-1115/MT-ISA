@@ -37,6 +37,7 @@ from tqdm import tqdm
 from transformers import AutoTokenizer
 
 from mt_isa_model import CONF_MIN, POLARITY_WORDS, MTISAModel
+from ensemble_agreement import merge_auxiliary_rows
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -166,6 +167,7 @@ class MTISADataset(Dataset):
         tokenizer,
         aux_by_id: Optional[Dict[str, Dict]] = None,
         conf_source: str = "stored",
+        weight_source: str = "confidence",
         max_length: int = 128,
         label_max_length: int = 64,
     ):
@@ -173,6 +175,7 @@ class MTISADataset(Dataset):
         self.tok = tokenizer
         self.aux_by_id = aux_by_id
         self.conf_source = conf_source
+        self.weight_source = weight_source
         self.max_length = max_length
         self.label_max_length = label_max_length
 
@@ -183,6 +186,8 @@ class MTISADataset(Dataset):
         return self.tok(text, max_length=max_len, truncation=True).input_ids  # ends with </s>
 
     def _conf(self, aux: Dict, key: str) -> float:
+        if self.weight_source != "confidence":
+            return float(aux[f"weight_{self.weight_source}"])
         if self.conf_source == "none":
             return 1.0
         if self.conf_source == "convergence":
@@ -214,6 +219,9 @@ class MTISADataset(Dataset):
                 "opinion_labels": self._enc(opinion_text, self.label_max_length),
                 "opinion_confidence": self._conf(aux, "opinion_confidence"),
             })
+            if self.weight_source != "confidence":
+                item["aspect_weight"] = self._conf(aux, "aspect_confidence")
+                item["opinion_weight"] = self._conf(aux, "opinion_confidence")
         return item
 
 
@@ -239,6 +247,9 @@ def make_collate(pad_id: int):
             if p != "polarity":
                 out[f"{p}_confidence"] = torch.tensor(
                     [b[f"{p}_confidence"] for b in batch], dtype=torch.float)
+                if f"{p}_weight" in batch[0]:
+                    out[f"{p}_weight"] = torch.tensor(
+                        [b[f"{p}_weight"] for b in batch], dtype=torch.float)
         return out
     return collate
 
@@ -387,6 +398,15 @@ def main():
                     choices=["stored", "convergence", "none"],
                     help="stored = confidences in the aux JSON; convergence = derived from "
                          "converged/refinement_iterations; none = all 1.0")
+    ap.add_argument("--weight-source", default="confidence",
+                    choices=["confidence", "random", "agreement", "combined"],
+                    help="Auxiliary D-AWL weights; confidence preserves the baseline.")
+    ap.add_argument("--mistral-aux-data", default=None,
+                    help="Mistral JSON used by agreement-based weighting.")
+    ap.add_argument("--qwen-aux-data", default=None,
+                    help="Qwen JSON used by agreement-based weighting.")
+    ap.add_argument("--agreement-alpha", type=float, default=0.5,
+                    help="Confidence share in combined weights; tune on validation only.")
     ap.add_argument("--drop-nonconverged", action="store_true",
                     help="Remove non-converged aux rows from the TRAIN split only.")
 
@@ -414,6 +434,19 @@ def main():
     # ---------------- data ----------------
     train_all = load_json(args.train_data)
     aux_rows = load_json(args.aux_data)
+    if args.weight_source != "confidence":
+        if not args.mistral_aux_data or not args.qwen_aux_data:
+            raise ValueError("Non-confidence weighting requires --mistral-aux-data and --qwen-aux-data")
+        aux_rows, agreement_diag = merge_auxiliary_rows(
+            load_json(args.mistral_aux_data), load_json(args.qwen_aux_data),
+            args.agreement_alpha, np.random.default_rng(args.seed))
+        logger.info("Ensemble diagnostics: %s", agreement_diag)
+        if not agreement_diag["polarity_available"]:
+            logger.warning(
+                "Agreement correctness correlation unavailable: the paired auxiliary "
+                "files contain no predicted polarity field; weights use aspect/opinion "
+                "agreement only."
+            )
     aux_by_id = {a["instance_id"]: a for a in aux_rows}
     describe_aux(aux_rows)
 
@@ -457,8 +490,9 @@ def main():
 
     train_ds = MTISADataset(train_instances, tokenizer,
                             None if args.polarity_only else aux_by_id,
-                            args.conf_source, args.max_length)
-    val_ds = MTISADataset(val_instances, tokenizer, None, args.conf_source, args.max_length)
+                            args.conf_source, args.weight_source, args.max_length)
+    val_ds = MTISADataset(val_instances, tokenizer, None, args.conf_source,
+                          args.weight_source, args.max_length)
     loader_kw = dict(collate_fn=collate, num_workers=args.num_workers,
                      pin_memory=torch.cuda.is_available())
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, **loader_kw)
@@ -567,7 +601,8 @@ def main():
         model.load_state_dict(torch.load(out_dir / "best.pt", map_location=device))
         test_instances = [x for x in load_json(args.test_data) if keep(x)]
         label_stats(test_instances, "test")
-        test_ds = MTISADataset(test_instances, tokenizer, None, args.conf_source, args.max_length)
+        test_ds = MTISADataset(test_instances, tokenizer, None, args.conf_source,
+                       args.weight_source, args.max_length)
         test_loader = DataLoader(test_ds, batch_size=args.eval_batch_size, shuffle=False, **loader_kw)
         with torch.no_grad():
             te = run_epoch(model, test_loader, device, bf16=args.bf16, desc="test")
