@@ -578,7 +578,6 @@ def main():
     if args.train_all:
         bad = [n for n, on in (("--drop-nonconverged", args.drop_nonconverged),
                                ("--val-data", bool(args.val_data)),
-                               ("--shuffle-hints", args.shuffle_hints),
                                ("--label-first-seq", args.label_first_seq is not None)) if on]
         if args.polarity_only and args.train_all_aux:
             raise ValueError("--train-all-aux has no use with --polarity-only; drop one of them.")
@@ -723,9 +722,24 @@ def main():
             # random cyclic order -> donor of order[k] is order[k+1]: a derangement
             order = np.random.RandomState(args.seed).permutation(n)
             donor = {ids_[order[k]]: ids_[order[(k + 1) % n]] for k in range(n)}
-            aux_by_id = {**aux_by_id, **{i: aux_by_id[d] for i, d in donor.items()}}
+            # (after the aux join; with --train-all-aux a donor may have no record -> the row
+            # then has none either, and the aux-loss mask follows the donor record)
+            shuffled = dict(aux_by_id)
+            for i, d in donor.items():
+                if d in aux_by_id:
+                    shuffled[i] = aux_by_id[d]
+                else:
+                    shuffled.pop(i, None)
+            aux_by_id = shuffled
             logger.info("--shuffle-hints: train rows now use another row's aux record "
                         "(%d rows, aspect/opinion/confidences/converged move together)", n)
+            if train_aux_valid is not None:
+                old_valid = dict(train_aux_valid)
+                for i, d in donor.items():
+                    train_aux_valid[i] = old_valid[d]
+                n_mask = sum(1 for i in ids_ if not train_aux_valid[i])
+                logger.info("--shuffle-hints: aux-loss mask follows the donor record: %d/%d rows "
+                            "masked after shuffling", n_mask, n)
             for i in ids_[:5]:
                 logger.info("[shuffle-hints] %s -> hints of %s", i, donor[i])
 

@@ -18,6 +18,10 @@ Fixes vs. the previous version
   checkpoint without generating anything.
 * Confidence now comes from the model's own self-rating (see
   ollama_client.py) instead of a length-based formula.
+* --backend openai uses an OpenAI-compatible gateway (openai_client.py, e.g. GPT-4o-mini,
+  temperature 0.7 as in the paper) with the same prompts; it needs only requests + tqdm
+  (requirements-gen.txt). Token usage is tracked, the running cost is logged every 100
+  rows, and the run stops cleanly (checkpoint kept, no final JSON) above --max-usd.
 """
 
 import argparse
@@ -32,7 +36,7 @@ from typing import Dict, List, Optional, Set
 
 from tqdm import tqdm
 
-from ollama_client import AspectOpinionExtractor, OllamaClient
+from isa_prompts import AspectOpinionExtractor  # backend clients are imported lazily in main()
 
 logging.basicConfig(
     level=logging.INFO,
@@ -64,7 +68,7 @@ class AuxiliaryData:
 class AuxiliaryGenerator:
     """Generate auxiliary task data using self-refine with polarity intervention."""
 
-    def __init__(self, ollama_client: OllamaClient, max_refinement_epochs: int = 10):
+    def __init__(self, ollama_client, max_refinement_epochs: int = 10):  # OllamaClient or OpenAIClient
         self.extractor = AspectOpinionExtractor(ollama_client)
         self.max_refinement_epochs = max_refinement_epochs
 
@@ -198,18 +202,29 @@ def print_statistics(jsonl_path: Path):
 # main
 # --------------------------------------------------------------------------
 def main():
-    parser = argparse.ArgumentParser(description="Generate auxiliary data using an Ollama LLM (v2)")
+    parser = argparse.ArgumentParser(description="Generate auxiliary data using an LLM (v2)")
     parser.add_argument("--input", default="data/processed/restaurant14_train_implicit.json")
     parser.add_argument("--output", default="data/auxiliary/restaurant14_train_implicit_aux.json",
                          help="final JSON array path (what train_mt_isa.py reads)")
     parser.add_argument("--output-jsonl", default=None,
                          help="checkpoint file; default is --output with a .jsonl extension")
-    parser.add_argument("--model", default="mistral", help="Ollama model tag, e.g. llama3.2:1b")
+    parser.add_argument("--backend", choices=["ollama", "openai"], default="ollama",
+                         help="ollama (local, default) or openai (OpenAI-compatible gateway; URL/key "
+                              "from AI_GATEWAY_URL / OPENAI_API_KEY_4O_MINI)")
+    parser.add_argument("--model", default=None,
+                         help="model; default 'mistral' (ollama) or 'azure/gpt-4o-mini' (openai)")
+    parser.add_argument("--temperature", type=float, default=None,
+                         help="default: ollama client default (0.3); openai 0.7 (paper)")
+    parser.add_argument("--max-usd", type=float, default=10.0,
+                         help="openai: stop cleanly once the estimated cost exceeds this")
+    parser.add_argument("--price-in", type=float, default=0.15, help="USD per 1M input tokens")
+    parser.add_argument("--price-out", type=float, default=0.60, help="USD per 1M output tokens")
     parser.add_argument("--base-url", default="http://localhost:11434")
     parser.add_argument("--max-epochs", type=int, default=10, help="max self-refine iterations per instance")
     parser.add_argument("--max-instances", type=int, default=None, help="cap instances (for a quick test)")
     parser.add_argument("--workers", type=int, default=1,
-                         help="concurrent requests; see the OLLAMA_NUM_PARALLEL note above")
+                         help="concurrent requests; see the OLLAMA_NUM_PARALLEL note above "
+                              "(openai backend: 4 recommended)")
     parser.add_argument("--resume", action="store_true",
                          help="skip instance ids already present in the checkpoint file")
     parser.add_argument("--verbose", action="store_true")
@@ -241,6 +256,9 @@ def main():
             jsonl_path,
         )
 
+    if all_instances and "id" not in all_instances[0]:
+        raise SystemExit(f"{args.input} rows have no 'id' field (an *_all.json file?). "
+                         "Build the input first: python make_gen_input.py")
     todo = [x for x in all_instances if x["id"] not in done_ids]
     logger.info("Instances to generate: %d (of %d total)", len(todo), len(all_instances))
     if not todo:
@@ -249,27 +267,93 @@ def main():
         print_statistics(jsonl_path)
         return
 
-    logger.info("Connecting to Ollama model: %s", args.model)
-    client = OllamaClient(model=args.model, base_url=args.base_url)
+    if args.backend == "openai":
+        from openai_client import OpenAIClient
+        args.model = args.model or "azure/gpt-4o-mini"
+        temperature = 0.7 if args.temperature is None else args.temperature
+        logger.info("OpenAI-compatible backend: model %s, temperature %s, workers %d, budget $%.2f",
+                    args.model, temperature, args.workers, args.max_usd)
+        client = OpenAIClient(model=args.model, temperature=temperature)
+    else:
+        from ollama_client import OllamaClient
+        args.model = args.model or "mistral"
+        logger.info("Connecting to Ollama model: %s", args.model)
+        kw = {} if args.temperature is None else {"temperature": args.temperature}
+        client = OllamaClient(model=args.model, base_url=args.base_url, **kw)
     generator = AuxiliaryGenerator(client, max_refinement_epochs=args.max_epochs)
+    is_openai = args.backend == "openai"
+    stop = threading.Event()
+    state = {"done": 0, "failed": 0}
+    state_lock = threading.Lock()
 
-    def _work(inst: Dict) -> AuxiliaryData:
-        result = generator.generate_for_instance(
-            instance_id=inst["id"], sentence=inst["sentence"],
-            target=inst["target"], gold_polarity=inst["gold_polarity"],
-            verbose=args.verbose,
-        )
+    def cost() -> float:
+        return client.cost_usd(args.price_in, args.price_out) if is_openai else 0.0
+
+    def _work(inst: Dict) -> Optional[AuxiliaryData]:
+        if stop.is_set():
+            return None
+        try:
+            result = generator.generate_for_instance(
+                instance_id=inst["id"], sentence=inst["sentence"],
+                target=inst["target"], gold_polarity=inst["gold_polarity"],
+                verbose=args.verbose,
+            )
+        except RuntimeError as e:
+            if not is_openai:
+                raise              # ollama: unchanged behaviour
+            # openai: not written to the checkpoint, so --resume retries this row later
+            logger.error("[%s] failed after retries: %s", inst["id"], e)
+            with state_lock:
+                state["failed"] += 1
+            return None
         append_result(jsonl_path, result)
         return result
 
+    def _after_row():
+        if not is_openai:
+            return
+        with state_lock:
+            state["done"] += 1
+            n = state["done"]
+        c = cost()
+        if n % 100 == 0:
+            u = client.usage()
+            logger.info("%d rows | tokens in %d out %d (%d requests, %d with estimated usage) | "
+                        "cost $%.3f of $%.2f", n, u["prompt_tokens"], u["completion_tokens"],
+                        u["requests"], u["estimated_requests"], c, args.max_usd)
+        if c > args.max_usd and not stop.is_set():
+            stop.set()
+            logger.warning("Estimated cost $%.3f exceeds --max-usd %.2f: stopping (in-flight rows "
+                           "finish; checkpoint kept). Re-run with --resume and a higher --max-usd.",
+                           c, args.max_usd)
+
     if args.workers <= 1:
         for inst in tqdm(todo, desc=f"Generating ({args.model})"):
+            if stop.is_set():
+                break
             _work(inst)
+            _after_row()
     else:
         with ThreadPoolExecutor(max_workers=args.workers) as ex:
             futures = [ex.submit(_work, inst) for inst in todo]
             for _ in tqdm(as_completed(futures), total=len(futures), desc=f"Generating ({args.model})"):
-                pass
+                if stop.is_set():
+                    continue          # pending rows return immediately once stop is set
+                _after_row()
+
+    if is_openai:
+        u = client.usage()
+        print(f"\nTOKENS: input {u['prompt_tokens']:,} | output {u['completion_tokens']:,} | "
+              f"requests {u['requests']:,} ({u['estimated_requests']:,} with usage estimated from "
+              f"characters) | estimated cost ${cost():.3f} "
+              f"(${args.price_in}/1M in, ${args.price_out}/1M out)")
+        if state["failed"]:
+            print(f"{state['failed']} rows failed after retries and are NOT in the checkpoint - "
+                  "re-run with --resume to retry them.")
+        if stop.is_set() or state["failed"]:
+            print(f"Run incomplete: final JSON NOT written. Checkpoint: {jsonl_path}")
+            print_statistics(jsonl_path)
+            return
 
     jsonl_to_json(jsonl_path, out_path)
     print_statistics(jsonl_path)
