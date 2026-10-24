@@ -7,7 +7,12 @@ from dss_ablation import LABELS, build_arm_records, macro_f1, make_donor_map, pa
 class DSSArmTests(unittest.TestCase):
     def setUp(self):
         self.examples = [
-            {"id": str(index), "text": f"review {index}", "aspect": "food", "label": LABELS[index % 3]}
+            {
+                "id": f"review{index // 3}_{index % 3}",
+                "text": f"review {index // 3}",
+                "aspect": "food",
+                "label": LABELS[index % 3],
+            }
             for index in range(12)
         ]
         self.explanations = {
@@ -26,6 +31,12 @@ class DSSArmTests(unittest.TestCase):
     def test_random_donors_are_deranged(self):
         donors = make_donor_map(self.examples, "random", seed=7)
         self.assertTrue(all(receiver != donor for receiver, donor in donors.items()))
+
+    def test_no_donor_shares_review_in_both_modes(self):
+        for mode in ("random", "same_label"):
+            donors = make_donor_map(self.examples, mode, seed=7)
+            for receiver, donor in donors.items():
+                self.assertNotEqual(receiver.split("_", 1)[0], donor.split("_", 1)[0])
 
     def test_arm_sizes_and_shared_label_targets(self):
         answer_only = build_arm_records(self.examples, self.explanations, "answer_only", seed=0)

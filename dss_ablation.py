@@ -226,13 +226,23 @@ def generate_explanations(
     cache_path: str,
     model: str,
     fake: bool = False,
+    timeout: float = 600.0,
 ) -> Dict[str, str]:
     explanations = read_explanations(cache_path)
     Path(cache_path).parent.mkdir(parents=True, exist_ok=True)
     client = None
     if not fake:
         from ollama_client import OllamaClient
-        client = OllamaClient(model=model, temperature=0.3, num_predict=80, max_retries=3)
+        client = OllamaClient(
+            model=model, temperature=0.3, num_predict=80, timeout=timeout, max_retries=3
+        )
+        warmup_start = time.perf_counter()
+        client.generate("Reply with OK.", temperature=0.0, num_predict=4)
+        LOGGER.info("Ollama warm-up completed in %.2fs", time.perf_counter() - warmup_start)
+    generated = 0
+    retry_count = 0
+    generation_start = time.perf_counter()
+    samples = []
     with Path(cache_path).open("a", encoding="utf-8", buffering=1) as handle:
         for example in examples:
             example_id = str(example["id"])
@@ -240,8 +250,10 @@ def generate_explanations(
                 continue
             explanation = ""
             for attempt in range(1, 4):
+                if attempt > 1:
+                    retry_count += 1
                 if fake:
-                    explanation = f"Fake explanation for the {example['label']} sentiment."
+                    explanation = f"FAKE explanation for {example_id}."
                 else:
                     try:
                         explanation = client.generate(
@@ -264,11 +276,25 @@ def generate_explanations(
             handle.write(json.dumps(item, ensure_ascii=True) + "\n")
             handle.flush()
             explanations[example_id] = explanation
+            generated += 1
+            if len(samples) < 5:
+                samples.append((example_id, example["label"], explanation))
+    if not fake and generated:
+        LOGGER.info(
+            "Generated %d explanations; retries=%d; seconds_per_example=%.2f",
+            generated, retry_count, (time.perf_counter() - generation_start) / generated,
+        )
+        for example_id, label, explanation in samples:
+            LOGGER.info("Sample explanation id=%s gold=%s: %s", example_id, label, explanation)
     return explanations
 
 
+def _review_id(example_id: str) -> str:
+    return str(example_id).split("_", 1)[0]
+
+
 def make_donor_map(examples: Sequence[Mapping[str, str]], mode: str, seed: int) -> Dict[str, str]:
-    """Assign a deranged donor id, grouped by label for same_label mode."""
+    """Assign cross-review donors, preferring same-label donors when requested."""
     if mode not in {"random", "same_label"}:
         raise ValueError(f"Unknown shuffle mode: {mode}")
     rng = random.Random(seed)
@@ -279,17 +305,71 @@ def make_donor_map(examples: Sequence[Mapping[str, str]], mode: str, seed: int) 
             by_label[example["label"]].append(example)
         groups = list(by_label.values())
     donors = {}
+    invalid_by_group = []
     for group in groups:
         ids = [str(example["id"]) for example in group]
-        if len(ids) <= 1:
-            if ids:
-                LOGGER.warning("Cannot derange a one-item donor group; using itself: %s", ids[0])
-                donors[ids[0]] = ids[0]
+        if not ids:
             continue
         order = ids[:]
-        rng.shuffle(order)
-        for index, receiver_id in enumerate(order):
-            donors[receiver_id] = order[(index + 1) % len(order)]
+        assigned = None
+        for _ in range(100):
+            rng.shuffle(order)
+            candidate = {
+                receiver: order[(index + 1) % len(order)]
+                for index, receiver in enumerate(order)
+            }
+            if all(
+                _review_id(receiver) != _review_id(donor)
+                for receiver, donor in candidate.items()
+            ):
+                assigned = candidate
+                break
+        if assigned is None:
+            assigned = {
+                receiver: order[(index + 1) % len(order)]
+                for index, receiver in enumerate(order)
+            }
+        donors.update(assigned)
+        invalid = [
+            receiver for receiver, donor in assigned.items()
+            if _review_id(receiver) == _review_id(donor)
+        ]
+        if invalid:
+            invalid_by_group.append((group, invalid))
+
+    all_ids = [str(example["id"]) for example in examples]
+    for group, invalid in invalid_by_group:
+        group_name = group[0].get("label", "all") if mode == "same_label" else "all"
+        LOGGER.warning(
+            "%s group %s has %d receiver(s) without a valid cross-review donor; "
+            "falling back to random cross-review donors",
+            mode, group_name, len(invalid),
+        )
+        for receiver in invalid:
+            if _review_id(receiver) != _review_id(donors.get(receiver, receiver)):
+                continue
+            swap_receiver = next(
+                (
+                    candidate for candidate in all_ids
+                    if candidate != receiver
+                    and _review_id(candidate) != _review_id(receiver)
+                    and _review_id(donors.get(candidate, candidate)) != _review_id(receiver)
+                    and _review_id(donors.get(receiver, receiver)) != _review_id(candidate)
+                ),
+                None,
+            )
+            if swap_receiver is not None:
+                donors[receiver], donors[swap_receiver] = donors[swap_receiver], donors[receiver]
+                continue
+            cross_review = [
+                candidate for candidate in all_ids
+                if _review_id(candidate) != _review_id(receiver)
+            ]
+            if cross_review:
+                LOGGER.warning("Using a non-bijective random cross-review donor for %s", receiver)
+                donors[receiver] = rng.choice(cross_review)
+            else:
+                LOGGER.warning("No cross-review donor exists for %s; using itself", receiver)
     return donors
 
 
@@ -529,6 +609,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--cache", default="explanations.jsonl")
     parser.add_argument("--results", default="dss_results.jsonl")
     parser.add_argument("--ollama_model", "--model", dest="ollama_model", default="qwen2.5:7b")
+    parser.add_argument("--ollama_timeout", type=float, default=600.0)
     parser.add_argument("--fake_explanations", action="store_true")
     parser.add_argument("--limit", type=int)
     parser.add_argument("--backbone", default="google/flan-t5-base")
@@ -569,7 +650,9 @@ def main(argv=None) -> None:
     print(f"Dropped labels: train={dropped_train}, test={dropped_test}")
     if args.stage == "generate":
         examples = train_examples[:args.limit] if args.limit is not None else train_examples
-        generate_explanations(examples, args.cache, args.ollama_model, args.fake_explanations)
+        generate_explanations(
+            examples, args.cache, args.ollama_model, args.fake_explanations, args.ollama_timeout
+        )
         return
     explanations = read_explanations(args.cache)
     eligible = [example for example in train_examples if example["id"] in explanations]
