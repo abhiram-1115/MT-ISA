@@ -6,6 +6,7 @@ artifacts so the existing MT-ISA implementation is unaffected.
 
 import argparse
 import ast
+import contextlib
 import gc
 import json
 import logging
@@ -327,24 +328,56 @@ def build_arm_records(
 
 
 def _tokenize_records(records: Sequence[Mapping[str, str]], tokenizer, max_in: int, max_out: int):
-    from datasets import Dataset
-    dataset = Dataset.from_list(list(records))
+    tokenized = []
+    for record in records:
+        encoded = tokenizer(record["input"], max_length=max_in, truncation=True, padding=False)
+        target = tokenizer(text_target=record["target"], max_length=max_out, truncation=True, padding=False)
+        tokenized.append({
+            "input_ids": encoded["input_ids"],
+            "attention_mask": encoded["attention_mask"],
+            "labels": target["input_ids"],
+        })
+    return tokenized
 
-    def tokenize(batch):
-        return tokenizer(
-            batch["input"],
-            text_target=batch["target"],
-            max_length=max_in,
-            truncation=True,
-            padding=False,
-        )
 
-    return dataset.map(tokenize, batched=True, remove_columns=dataset.column_names)
+def collate_batch(batch: Sequence[Mapping[str, Sequence[int]]], pad_token_id: int) -> Dict[str, "torch.Tensor"]:
+    import torch
+
+    def pad(key: str, value: int):
+        width = max(len(item[key]) for item in batch)
+        result = torch.full((len(batch), width), value, dtype=torch.long)
+        for row_index, item in enumerate(batch):
+            values = torch.tensor(item[key], dtype=torch.long)
+            result[row_index, : len(values)] = values
+        return result
+
+    return {
+        "input_ids": pad("input_ids", pad_token_id),
+        "attention_mask": pad("attention_mask", 0),
+        "labels": pad("labels", -100),
+    }
+
+
+def macro_f1(gold: Sequence[str], predicted: Sequence[str]) -> float:
+    """Unweighted F1 over the three sentiment labels."""
+    if len(gold) != len(predicted):
+        raise ValueError("gold and predicted must have the same length")
+    scores = []
+    for label in LABELS:
+        true_positive = sum(actual == label and guess == label for actual, guess in zip(gold, predicted))
+        support = sum(actual == label for actual in gold)
+        predicted_count = sum(guess == label for guess in predicted)
+        if support == 0 or predicted_count == 0:
+            scores.append(0.0)
+            continue
+        precision = true_positive / predicted_count
+        recall = true_positive / support
+        scores.append(2 * precision * recall / (precision + recall) if precision + recall else 0.0)
+    return sum(scores) / len(scores)
 
 
 def _evaluate(model, tokenizer, examples: Sequence[Mapping[str, str]], max_test: Optional[int]) -> Tuple[float, float, int, List[Dict]]:
     import torch
-    from sklearn.metrics import accuracy_score, f1_score
 
     if max_test is not None:
         examples = list(examples)[:max_test]
@@ -379,9 +412,8 @@ def _evaluate(model, tokenizer, examples: Sequence[Mapping[str, str]], max_test:
     gold = [item["gold"] for item in predictions]
     parsed = [item["prediction"] or "__unparsed__" for item in predictions]
     unparsed = sum(item["prediction"] is None for item in predictions)
-    acc = accuracy_score(gold, parsed) if gold else 0.0
-    macro_f1 = f1_score(gold, parsed, labels=list(LABELS), average="macro", zero_division=0) if gold else 0.0
-    return float(acc), float(macro_f1), int(unparsed), predictions
+    acc = sum(actual == guess for actual, guess in zip(gold, parsed)) / len(gold) if gold else 0.0
+    return float(acc), float(macro_f1(gold, parsed)), int(unparsed), predictions
 
 
 def train_one(
@@ -392,41 +424,55 @@ def train_one(
     seed: int,
 ) -> Dict:
     import torch
-    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, DataCollatorForSeq2Seq, Seq2SeqTrainer, Seq2SeqTrainingArguments
+    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
     tokenizer = AutoTokenizer.from_pretrained(args.backbone)
     model = AutoModelForSeq2SeqLM.from_pretrained(args.backbone)
-    train_dataset = _tokenize_records(records, tokenizer, args.max_in, args.max_out)
-    collator = DataCollatorForSeq2Seq(tokenizer=tokenizer, model=model)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+    tokenized = _tokenize_records(records, tokenizer, args.max_in, args.max_out)
     use_bf16 = bool(torch.cuda.is_available())
-    training_args = Seq2SeqTrainingArguments(
-        output_dir=str(Path(args.output_dir) / f"{arm}_s{seed}"),
-        per_device_train_batch_size=args.bs,
-        gradient_accumulation_steps=args.accum,
-        learning_rate=args.lr,
-        num_train_epochs=args.epochs,
-        logging_strategy="epoch",
-        save_strategy="no",
-        evaluation_strategy="no",
-        report_to=[],
-        dataloader_num_workers=0,
-        remove_unused_columns=True,
-        seed=seed,
-        bf16=use_bf16,
-        fp16=False,
-    )
-    trainer = Seq2SeqTrainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_dataset,
-        data_collator=collator,
-        tokenizer=tokenizer,
+    if torch.cuda.is_available():
+        torch.cuda.reset_peak_memory_stats()
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0.0)
+    batches_per_epoch = (len(tokenized) + args.bs - 1) // args.bs
+    updates_per_epoch = (batches_per_epoch + args.accum - 1) // args.accum
+    total_updates = max(1, updates_per_epoch * args.epochs)
+    scheduler = torch.optim.lr_scheduler.LambdaLR(
+        optimizer, lambda step: max(0.0, 1.0 - step / total_updates)
     )
     start = time.perf_counter()
-    trainer.train()
+    optimizer_steps = 0
+    optimizer.zero_grad(set_to_none=True)
+    for epoch in range(args.epochs):
+        order = list(range(len(tokenized)))
+        random.shuffle(order)
+        model.train()
+        for batch_start in range(0, len(order), args.bs):
+            batch = [tokenized[index] for index in order[batch_start:batch_start + args.bs]]
+            tensors = collate_batch(batch, tokenizer.pad_token_id)
+            tensors = {key: value.to(device) for key, value in tensors.items()}
+            autocast_context = (
+                torch.autocast("cuda", dtype=torch.bfloat16)
+                if use_bf16 else contextlib.nullcontext()
+            )
+            with autocast_context:
+                loss = model(**tensors).loss
+            raw_loss = float(loss.detach().float())
+            (loss / args.accum).backward()
+            is_last_batch = batch_start + args.bs >= len(order)
+            if ((batch_start // args.bs + 1) % args.accum == 0) or is_last_batch:
+                optimizer.step()
+                scheduler.step()
+                optimizer.zero_grad(set_to_none=True)
+                optimizer_steps += 1
+                if optimizer_steps % 50 == 0:
+                    LOGGER.info("%s seed=%d epoch=%d optimizer_step=%d loss=%.4f", arm, seed, epoch + 1, optimizer_steps, raw_loss)
     elapsed = time.perf_counter() - start
     acc, macro_f1, unparsed, predictions = _evaluate(model, tokenizer, test_examples, args.max_test)
     peak_mb = None
@@ -443,8 +489,9 @@ def train_one(
         "wall_seconds": round(elapsed, 3),
         "peak_gpu_mb": peak_mb,
         "n_train": len(records),
+        "fake_explanations": bool(args.fake_explanations),
     }
-    del trainer, model, tokenizer, train_dataset, collator
+    del model, tokenizer, tokenized, optimizer, scheduler
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
@@ -456,6 +503,8 @@ def summarize(path: str) -> None:
     if Path(path).exists():
         with Path(path).open(encoding="utf-8") as handle:
             rows = [json.loads(line) for line in handle if line.strip()]
+    if any(row.get("fake_explanations", False) for row in rows):
+        print("WARNING: results include fake explanations; do not interpret them as real DSS results.")
     print("arm          shuffle      n seeds   accuracy (%)        macro-F1 (%)")
     print("-" * 72)
     groups = defaultdict(list)
@@ -479,14 +528,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--label_col", default="label")
     parser.add_argument("--cache", default="explanations.jsonl")
     parser.add_argument("--results", default="dss_results.jsonl")
-    parser.add_argument("--model", default="qwen2.5:7b")
+    parser.add_argument("--ollama_model", "--model", dest="ollama_model", default="qwen2.5:7b")
     parser.add_argument("--fake_explanations", action="store_true")
     parser.add_argument("--limit", type=int)
     parser.add_argument("--backbone", default="google/flan-t5-base")
     parser.add_argument("--bs", type=int, default=4)
     parser.add_argument("--accum", type=int, default=8)
     parser.add_argument("--lr", type=float, default=3e-4)
-    parser.add_argument("--epochs", type=float, default=5)
+    parser.add_argument("--epochs", type=int, default=5)
     parser.add_argument("--seeds", nargs="+", type=int, default=[0, 1, 2])
     parser.add_argument("--arms", nargs="+", choices=("answer_only", "correct", "shuffled"), default=["answer_only", "correct", "shuffled"])
     parser.add_argument("--shuffle_mode", choices=("random", "same_label"), default="same_label")
@@ -509,14 +558,18 @@ def main(argv=None) -> None:
     if args.stage == "summarize":
         summarize(args.results)
         return
-    limits = (args.limit, 1) if args.stage == "generate" else (None, None)
+    limits = (
+        (args.limit, 1)
+        if args.stage == "generate"
+        else (args.max_train, args.max_test)
+    )
     train_split, test_split = load_dataset_splits(args.dataset, *limits)
     train_examples, dropped_train = normalize_examples(train_split, args.text_col, args.aspect_col, args.label_col)
     test_examples, dropped_test = normalize_examples(test_split, args.text_col, args.aspect_col, args.label_col)
     print(f"Dropped labels: train={dropped_train}, test={dropped_test}")
     if args.stage == "generate":
         examples = train_examples[:args.limit] if args.limit is not None else train_examples
-        generate_explanations(examples, args.cache, args.model, args.fake_explanations)
+        generate_explanations(examples, args.cache, args.ollama_model, args.fake_explanations)
         return
     explanations = read_explanations(args.cache)
     eligible = [example for example in train_examples if example["id"] in explanations]

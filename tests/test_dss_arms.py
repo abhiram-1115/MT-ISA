@@ -1,7 +1,7 @@
 import logging
 import unittest
 
-from dss_ablation import LABELS, build_arm_records, make_donor_map, parse_absa_output
+from dss_ablation import LABELS, build_arm_records, macro_f1, make_donor_map, parse_absa_output
 
 
 class DSSArmTests(unittest.TestCase):
@@ -63,6 +63,11 @@ class DSSArmTests(unittest.TestCase):
             parse_absa_output("[['food', 'positive'], ['service', 'neutral']]"),
             [("food", "positive"), ("service", "neutral")],
         )
+
+    def test_manual_macro_f1_matches_hand_computation(self):
+        gold = ["positive", "negative", "neutral", "neutral"]
+        predicted = ["positive", "positive", "neutral", "positive"]
+        self.assertAlmostEqual(macro_f1(gold, predicted), 7 / 18)
 
 
 if __name__ == "__main__":
