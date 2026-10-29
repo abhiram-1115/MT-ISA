@@ -2,9 +2,10 @@
 Rationale generation for rationale distillation (FACT-SR / RVISA style), via Ollama.
 
 For every row (id, sentence, target, gold_polarity):
-  step 1  rationalize (gold visible): one or two sentences (max 40 words) explaining why the
-          sentiment toward the target is <gold>, naming the target and using only evidence from
-          the sentence, not starting with a label word
+  step 1  rationalize (gold visible): one or two sentences (max 40 words) explaining what in the
+          sentence shows the writer's attitude toward the target, naming the target and using
+          only evidence from the sentence; an attempt fails if the rationale contains the words
+          positive/negative/neutral/sentiment/polarity (whole word) or starts with "The sentiment"
   step 2  verify (gold hidden): sentence + target + rationale -> polarity
   keep    only if verify == gold AND the rationale mentions the target (case-insensitive
           substring, or any target token of >= 4 characters)
@@ -36,18 +37,22 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(level
 logger = logging.getLogger("rationale_generator")
 _write_lock = threading.Lock()
 
-SYSTEM = "You explain sentiment labels in aspect-based sentiment analysis. Respond only in English."
+SYSTEM = "You explain what evidence in a sentence shows a writer's attitude. Respond only in English."
 MAX_WORDS = 40
+# a rationale must describe evidence, not restate a label / template
+BANNED_RE = re.compile(r"\b(positive|negative|neutral|sentiment|polarity)\b", re.IGNORECASE)
 
 
 def rationale_prompt(sentence: str, target: str, gold: str) -> str:
     return (
         f'Sentence: "{sentence}"\n'
         f'Target: "{target}"\n'
-        f'The sentiment toward "{target}" is {gold}.\n'
-        f'In one or two sentences (at most {MAX_WORDS} words), explain why the sentiment toward '
-        f'"{target}" is {gold}. Refer to "{target}" by name and use only evidence from the sentence. '
-        f"Do not start with the word positive, negative or neutral. Write only the explanation."
+        f'The writer\'s attitude toward "{target}" is {gold}.\n'
+        f'In one or two sentences (at most {MAX_WORDS} words), explain what in the sentence shows '
+        f'the writer\'s attitude toward "{target}". Refer to "{target}" by name and use only evidence '
+        f"from the sentence. Do not use the words positive, negative, neutral, sentiment, or polarity; "
+        f"describe the evidence instead (e.g. \"The staff are called horrible, which reflects a bad "
+        f"experience with them.\"). Write only the explanation."
     )
 
 
@@ -61,12 +66,38 @@ def verify_prompt(sentence: str, target: str, rationale: str) -> str:
     )
 
 
+_END_RE = re.compile(r"[.!?]+[\"\u201d\u2019')\]]*(?=\s|$)")
+
+
+def _inside_quotes(prefix: str) -> bool:
+    """True if `prefix` ends inside a double-quoted span (straight or curly quotes)."""
+    return prefix.count('"') % 2 == 1 or prefix.count("\u201c") > prefix.count("\u201d")
+
+
+def first_sentences(t: str, n: int = 2) -> str:
+    """First n sentences; never splits inside double quotes and keeps closing quotes/brackets."""
+    cut, found = len(t), 0
+    for m in _END_RE.finditer(t):
+        if _inside_quotes(t[: m.end()]):
+            continue
+        found += 1
+        if found == n:
+            cut = m.end()
+            break
+    return t[:cut].strip()
+
+
 def clean_rationale(text: str) -> str:
     t = " ".join((text or "").split())
     t = re.sub(r"^(rationale|explanation|answer)\s*[:\-]\s*", "", t, flags=re.IGNORECASE)
-    t = t.strip(" \"'")
-    sents = re.split(r"(?<=[.!?])\s+", t)
-    return " ".join(sents[:2]).strip()
+    for q in ('"', "'"):   # strip quotes only when they wrap the whole answer
+        if len(t) >= 2 and t[0] == q and t[-1] == q and t.count(q) == 2:
+            t = t[1:-1].strip()
+    return first_sentences(t, 2)
+
+
+def has_banned(rationale: str) -> bool:
+    return bool(BANNED_RE.search(rationale)) or rationale.lower().startswith("the sentiment")
 
 
 def mentions_target(rationale: str, target: str) -> bool:
@@ -109,6 +140,9 @@ class RationaleGenerator:
                 continue
             if starts_with_label(rationale):
                 reasons.append("label_start")
+                continue
+            if has_banned(rationale):
+                reasons.append("banned_word")
                 continue
             if len(rationale.split()) > MAX_WORDS + 10:   # small tolerance over the 40-word limit
                 reasons.append("too_long")
@@ -160,6 +194,11 @@ def print_stats(rows: List[Dict]):
     lens = [len(r["rationale"].split()) for r in rows if r.get("passed")]
     if lens:
         print(f"rationale words (passed): mean {sum(lens) / len(lens):.1f}, max {max(lens)}")
+    examples = [r for r in rows if r.get("passed")][:5]
+    if examples:
+        print("example passed rationales:")
+        for r in examples:
+            print(f"  [{r['instance_id']} | {r['gold_polarity']}] {r['rationale']}")
     print("=" * 60)
 
 
