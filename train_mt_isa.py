@@ -532,6 +532,10 @@ def main():
                     help="Permute the aux records (aspect, opinion, confidences, converged) across "
                          "TRAIN instances (cyclic shift of a permutation seeded by --seed, so no "
                          "sentence keeps its own hints). Polarity task untouched.")
+    ap.add_argument("--shuffle-within-label", action="store_true",
+                    help="Like --shuffle-hints, but the derangement is done separately within each "
+                         "gold polarity group: a row only receives the aux record / rationale of "
+                         "another row with the same gold label.")
     ap.add_argument("--kd-probs", default=None, metavar="PATH",
                     help="Knowledge distillation (needs --polarity-only): JSON {instance_id: [p_pos, "
                          "p_neg, p_neu]}. Loss = (1-a)*CE(gold) + a*T^2*KL(teacher_T || softmax(s/T)) "
@@ -581,6 +585,10 @@ def main():
             raise ValueError("--label-first-seq cannot be combined with: " + ", ".join(bad))
         if args.label_first_seq < 0:
             raise ValueError("--label-first-seq W must be >= 0")
+    if args.shuffle_hints and args.shuffle_within_label:
+        raise ValueError("--shuffle-hints and --shuffle-within-label are mutually exclusive.")
+    if args.shuffle_within_label and args.polarity_only:
+        logger.warning("--shuffle-within-label has no effect with --polarity-only.")
     if args.shuffle_hints and args.polarity_only:
         logger.warning("--shuffle-hints has no effect with --polarity-only.")
     has_aux_tasks = not args.polarity_only and args.label_first_seq is None
@@ -751,15 +759,35 @@ def main():
                     sum(1 for x in train_instances if x["id"] not in recs))
         del recs
 
-    if args.shuffle_hints and not args.polarity_only:
+    if (args.shuffle_hints or args.shuffle_within_label) and not args.polarity_only:
         ids_ = [x["id"] for x in train_instances]
         n = len(ids_)
+        gold_of = {x["id"]: x["gold_polarity"].lower() for x in train_instances}
         if n < 2:
             logger.warning("--shuffle-hints needs >= 2 train rows; skipped.")
         else:
-            # random cyclic order -> donor of order[k] is order[k+1]: a derangement
-            order = np.random.RandomState(args.seed).permutation(n)
-            donor = {ids_[order[k]]: ids_[order[(k + 1) % n]] for k in range(n)}
+            rs = np.random.RandomState(args.seed)
+            if args.shuffle_within_label:
+                # same derangement, done separately inside each gold-label group
+                donor = {}
+                for label in POLARITY_TO_ID:          # fixed order -> reproducible
+                    grp = [i for i in ids_ if gold_of[i] == label]
+                    if len(grp) < 2:
+                        donor.update({i: i for i in grp})
+                        if grp:
+                            logger.warning("--shuffle-within-label: only one '%s' row; it keeps "
+                                           "its own record", label)
+                        continue
+                    order = rs.permutation(len(grp))
+                    donor.update({grp[order[k]]: grp[order[(k + 1) % len(grp)]]
+                                  for k in range(len(grp))})
+                assert all(gold_of[i] == gold_of[d] for i, d in donor.items())
+                logger.info("--shuffle-within-label: derangement within each gold label (%s)",
+                            dict(Counter(gold_of[i] for i in ids_)))
+            else:
+                # random cyclic order -> donor of order[k] is order[k+1]: a derangement
+                order = rs.permutation(n)
+                donor = {ids_[order[k]]: ids_[order[(k + 1) % n]] for k in range(n)}
             # (after the aux join; with --train-all-aux a donor may have no record -> the row
             # then has none either, and the aux-loss mask follows the donor record)
             shuffled = dict(aux_by_id)
@@ -787,7 +815,8 @@ def main():
                             "(%d rows with a usable rationale after shuffling)",
                             sum(1 for v in rationale_by_id.values() if v))
             for i in ids_[:5]:
-                logger.info("[shuffle-hints] %s -> hints of %s", i, donor[i])
+                logger.info("[shuffle-hints] %s (%s) -> hints of %s (%s)", i, gold_of[i],
+                            donor[i], gold_of[donor[i]])
 
     if args.label_first_seq is not None:
         # the first target token must be the label token, otherwise step-0 inference

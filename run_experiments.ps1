@@ -225,6 +225,7 @@ $ConfigTable = [ordered]@{
     "mtisa4o_shuf_all_gv" = @("--d-awl-strategy", "input", "--train-all", "--val-group-by-sentence", "--train-all-aux", $Aux4o, "--shuffle-hints")
     "lfrat_all_gv"        = @("--train-all", "--val-group-by-sentence", "--d-awl-strategy", "none", "--label-first-seq", "1.0", "--rationale-data", $RationaleData)
     "lfrat_shuf_all_gv"   = @("--train-all", "--val-group-by-sentence", "--d-awl-strategy", "none", "--label-first-seq", "1.0", "--rationale-data", $RationaleData, "--shuffle-hints")
+    "lfrat_shufsame_all_gv" = @("--train-all", "--val-group-by-sentence", "--d-awl-strategy", "none", "--label-first-seq", "1.0", "--rationale-data", $RationaleData, "--shuffle-within-label")
     "mtisa_ce_all_gv" = @("--d-awl-strategy", "input", "--train-all", "--val-group-by-sentence", "--train-all-aux", $TrainAllAux, "--polarity-ce3")
     "aux0.3_all_gv" = @("--d-awl-strategy", "none", "--aux-weight", "0.3", "--train-all", "--val-group-by-sentence", "--train-all-aux", $TrainAllAux)
     "lora_pol"      = @("--tasks", "pol")
