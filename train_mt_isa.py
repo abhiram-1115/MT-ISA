@@ -223,6 +223,7 @@ class MTISADataset(Dataset):
         label_first_seq: bool = False,
         aux_valid: Optional[Dict[str, bool]] = None,
         kd_probs: Optional[Dict[str, List[float]]] = None,
+        rationale_by_id: Optional[Dict[str, Optional[str]]] = None,
     ):
         self.instances = instances
         self.tok = tokenizer
@@ -232,6 +233,8 @@ class MTISADataset(Dataset):
         self.label_first_seq = label_first_seq
         self.aux_valid = aux_valid  # id -> False: zero this row's aspect/opinion loss (train-all-aux)
         self.kd_probs = kd_probs    # id -> teacher [p_pos, p_neg, p_neu] (--kd-probs)
+        # id -> usable rationale text or None (--rationale-data, label-first mode)
+        self.rationale_by_id = rationale_by_id
         self.conf_override = conf_override  # id -> {"aspect_confidence", "opinion_confidence"}
         self.max_length = max_length
         self.label_max_length = label_max_length
@@ -269,6 +272,16 @@ class MTISADataset(Dataset):
             aux = self.aux_by_id.get(inst["id"]) or {}   # {} only happens for masked rows
             aspect_text = (aux.get("aspect") or "").strip() or target
             opinion_text = (aux.get("opinion") or "").strip() or "none"
+            if self.label_first_seq and self.rationale_by_id is not None:
+                # ONE target: "<label>. <rationale>"; without a usable rationale only "<label>."
+                # with every token after the label masked (-100) -> rest loss 0 for that row
+                rat = self.rationale_by_id.get(inst["id"])
+                if rat:
+                    item["polarity_labels"] = self._enc(f"{gold}. {rat}", self.label_max_length)
+                else:
+                    ids = self._enc(f"{gold}.", self.label_max_length)
+                    item["polarity_labels"] = ids[:1] + [-100] * (len(ids) - 1)
+                return item
             if self.label_first_seq:
                 # ONE target: polarity prompt -> "<label>. aspect: <a>. opinion: <o>."
                 item["polarity_labels"] = self._enc(
@@ -534,6 +547,11 @@ def main():
                          "--label-smoothing/--kd-probs path with no smoothing and no KD). "
                          "Works with --polarity-only and with the aux tasks (aspect/opinion, D-AWL, "
                          "T-AWL unchanged); not with --label-first-seq.")
+    ap.add_argument("--rationale-data", default=None, metavar="PATH",
+                    help="With --label-first-seq: target = '<label>. <rationale>' from this JSON "
+                         "(list of {instance_id, rationale, passed, attempts}); rows without a passed "
+                         "rationale get '<label>.' with rest loss 0. Works with --train-all and "
+                         "--shuffle-hints.")
     ap.add_argument("--label-first-seq", type=float, default=None, metavar="W",
                     help="One decoder target '<label>. aspect: <a>. opinion: <o>.' per example; "
                          "loss_i = nll_label + W * mean NLL of the later tokens (incl. </s>), "
@@ -573,17 +591,21 @@ def main():
         raise ValueError("--polarity-ce3 cannot be combined with --label-first-seq.")
     if not (0.0 <= args.kd_alpha <= 1.0) or args.kd_temp <= 0 or not (0.0 <= args.label_smoothing < 1.0):
         raise ValueError("need 0 <= --kd-alpha <= 1, --kd-temp > 0, 0 <= --label-smoothing < 1")
+    if args.rationale_data and args.label_first_seq is None:
+        raise ValueError("--rationale-data needs --label-first-seq.")
     if args.train_all_aux and not args.train_all:
         raise ValueError("--train-all-aux needs --train-all.")
     if args.train_all:
         bad = [n for n, on in (("--drop-nonconverged", args.drop_nonconverged),
-                               ("--val-data", bool(args.val_data)),
-                               ("--label-first-seq", args.label_first_seq is not None)) if on]
+                               ("--val-data", bool(args.val_data))) if on]
+        if args.label_first_seq is not None and not args.rationale_data:
+            raise ValueError("--label-first-seq with --train-all needs --rationale-data "
+                             "(aux-based label-first targets are only defined for the implicit rows).")
         if args.polarity_only and args.train_all_aux:
             raise ValueError("--train-all-aux has no use with --polarity-only; drop one of them.")
-        if not args.polarity_only and not args.train_all_aux:
-            raise ValueError("--train-all needs --polarity-only or --train-all-aux "
-                             "(aux hints exist only for the rows in that file).")
+        if not args.polarity_only and not args.train_all_aux and not args.rationale_data:
+            raise ValueError("--train-all needs --polarity-only, --train-all-aux or "
+                             "--label-first-seq with --rationale-data.")
         if bad:
             raise ValueError("--train-all cannot be combined with: " + ", ".join(bad))
         if not args.test_data:
@@ -713,6 +735,22 @@ def main():
                     why["missing"], why["empty"], why["unk"], why["ok"])
         label_stats(train_instances, "train (after aux masking, rows unchanged)")
 
+    rationale_by_id = None
+    if args.rationale_data:
+        recs = {r["instance_id"]: r for r in load_json(args.rationale_data)}
+        rationale_by_id = {}
+        for x in train_instances:
+            r = recs.get(x["id"]) or {}
+            text = " ".join(str(r.get("rationale") or "").split())
+            rationale_by_id[x["id"]] = text if (r.get("passed") and text) else None
+        n_use = sum(1 for v in rationale_by_id.values() if v)
+        logger.info("--rationale-data %s: %d/%d train rows have a usable (passed) rationale "
+                    "(%.1f%%); %d rows without a record; the others get '<label>.' with rest loss 0",
+                    args.rationale_data, n_use, len(train_instances),
+                    100 * n_use / max(1, len(train_instances)),
+                    sum(1 for x in train_instances if x["id"] not in recs))
+        del recs
+
     if args.shuffle_hints and not args.polarity_only:
         ids_ = [x["id"] for x in train_instances]
         n = len(ids_)
@@ -740,6 +778,14 @@ def main():
                 n_mask = sum(1 for i in ids_ if not train_aux_valid[i])
                 logger.info("--shuffle-hints: aux-loss mask follows the donor record: %d/%d rows "
                             "masked after shuffling", n_mask, n)
+            if rationale_by_id is not None:
+                # rationale + pass flag move together (None = no usable rationale at the donor)
+                old_rat = dict(rationale_by_id)
+                for i, d in donor.items():
+                    rationale_by_id[i] = old_rat[d]
+                logger.info("--shuffle-hints: rationales permuted with the same derangement "
+                            "(%d rows with a usable rationale after shuffling)",
+                            sum(1 for v in rationale_by_id.values() if v))
             for i in ids_[:5]:
                 logger.info("[shuffle-hints] %s -> hints of %s", i, donor[i])
 
@@ -749,6 +795,9 @@ def main():
         for w in POLARITY_WORDS:
             bare = tokenizer(w).input_ids
             full = tokenizer(label_first_target(w, "the food", "tasty")).input_ids
+            for alt in (f"{w}. The food is described as tasty.", f"{w}."):  # rationale forms
+                if tokenizer(alt).input_ids[0] != bare[0]:
+                    raise AssertionError(f"first token of {alt!r} != first token of '{w}'")
             logger.info("[label-first-seq] %-8s bare ids %s | full-target ids %s... | "
                         "first token %r vs %r", w, bare, full[:4],
                         tokenizer.convert_ids_to_tokens(bare[0]),
@@ -804,7 +853,19 @@ def main():
                             args.conf_source, args.max_length, conf_override=conf_override,
                             mask_nonconverged=args.aux_mask_nonconverged and not args.polarity_only,
                             label_first_seq=args.label_first_seq is not None,
-                            aux_valid=train_aux_valid, kd_probs=kd_train)
+                            aux_valid=train_aux_valid, kd_probs=kd_train,
+                            rationale_by_id=rationale_by_id,
+                            label_max_length=96 if rationale_by_id is not None else 64)
+    if rationale_by_id is not None:
+        shown = 0
+        for want in (True, False):   # one row with a rationale, one without (if any)
+            for k, x in enumerate(train_instances):
+                if bool(rationale_by_id.get(x["id"])) == want:
+                    lab = [t for t in train_ds[k]["polarity_labels"] if t != -100]
+                    logger.info("[rationale target example %d] %s -> %r", shown + 1, x["id"],
+                                tokenizer.decode(lab, skip_special_tokens=True))
+                    shown += 1
+                    break
     val_ds = MTISADataset(val_instances, tokenizer, None, args.conf_source, args.max_length)
     loader_kw = dict(collate_fn=collate, num_workers=args.num_workers,
                      pin_memory=torch.cuda.is_available())

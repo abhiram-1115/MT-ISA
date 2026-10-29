@@ -22,6 +22,8 @@
 #            -AllAux PATH (alias of -TrainAllAux) overrides the train-all aux file of mtisa_in_all_gv,
 #            aux0.3_all_gv, mtisa_ce_all_gv, lora_mtl*; mtisa4o_* always use the GPT-4o-mini aux file
 #            data/auxiliary/<dataset>14_train_all_aux_gpt4omini_full.json.
+#            lfrat_* = label-first targets "<label>. <rationale>" from rationale_generator.py
+#            (data/auxiliary/<dataset>14_train_all_rationale_qwen7b.json).
 #            kd_all_gv uses -TeacherProbs (default data/teacher/<dataset>14_train_all_teacher_probs.json,
 #            made by teacher_folds.py in venv_lora).
 #            lora7b_pol = Qwen2.5-7B-Instruct in 4-bit (needs bitsandbytes), batch 4 x 4.
@@ -69,12 +71,14 @@ if ($Dataset -eq "laptop") {
     if ($TrainAllAux -eq "") { $TrainAllAux = "data/auxiliary/laptop14_train_all_aux_qwen7b_full.json" }
     if ($TeacherProbs -eq "") { $TeacherProbs = "data/teacher/laptop14_train_all_teacher_probs.json" }
     $Aux4o = "data/auxiliary/laptop14_train_all_aux_gpt4omini_full.json"
+    $RationaleData = "data/auxiliary/laptop14_train_all_rationale_qwen7b.json"
 } else {
     if ($TrainAll -eq "")    { $TrainAll    = "data/processed/restaurant14_train_all.json" }
     if ($TestAll -eq "")     { $TestAll     = "data/processed/restaurant14_test_all.json" }
     if ($TrainAllAux -eq "") { $TrainAllAux = "data/auxiliary/restaurant14_train_all_aux_qwen7b_full.json" }
     if ($TeacherProbs -eq "") { $TeacherProbs = "data/teacher/restaurant14_train_all_teacher_probs.json" }
     $Aux4o = "data/auxiliary/restaurant14_train_all_aux_gpt4omini_full.json"
+    $RationaleData = "data/auxiliary/restaurant14_train_all_rationale_qwen7b.json"
 }
 
 $ModelsDir  = "models$Suffix"
@@ -219,6 +223,8 @@ $ConfigTable = [ordered]@{
     "mtisa_in_all_gv" = @("--d-awl-strategy", "input", "--train-all", "--val-group-by-sentence", "--train-all-aux", $TrainAllAux)
     "mtisa4o_all_gv"      = @("--d-awl-strategy", "input", "--train-all", "--val-group-by-sentence", "--train-all-aux", $Aux4o)
     "mtisa4o_shuf_all_gv" = @("--d-awl-strategy", "input", "--train-all", "--val-group-by-sentence", "--train-all-aux", $Aux4o, "--shuffle-hints")
+    "lfrat_all_gv"        = @("--train-all", "--val-group-by-sentence", "--d-awl-strategy", "none", "--label-first-seq", "1.0", "--rationale-data", $RationaleData)
+    "lfrat_shuf_all_gv"   = @("--train-all", "--val-group-by-sentence", "--d-awl-strategy", "none", "--label-first-seq", "1.0", "--rationale-data", $RationaleData, "--shuffle-hints")
     "mtisa_ce_all_gv" = @("--d-awl-strategy", "input", "--train-all", "--val-group-by-sentence", "--train-all-aux", $TrainAllAux, "--polarity-ce3")
     "aux0.3_all_gv" = @("--d-awl-strategy", "none", "--aux-weight", "0.3", "--train-all", "--val-group-by-sentence", "--train-all-aux", $TrainAllAux)
     "lora_pol"      = @("--tasks", "pol")
@@ -257,8 +263,10 @@ $chk = @()
 if ($needAll.Count -gt 0) { $chk += @($TrainAll, $TestAll) }
 foreach ($name in $Selected) {   # every aux file a selected config passes via --train-all-aux
     $cfgArgs = @($ConfigTable[$name])
-    $ix = [array]::IndexOf($cfgArgs, "--train-all-aux")
-    if ($ix -ge 0 -and $ix + 1 -lt $cfgArgs.Count -and $chk -notcontains $cfgArgs[$ix + 1]) { $chk += $cfgArgs[$ix + 1] }
+    foreach ($flag in @("--train-all-aux", "--rationale-data")) {
+        $ix = [array]::IndexOf($cfgArgs, $flag)
+        if ($ix -ge 0 -and $ix + 1 -lt $cfgArgs.Count -and $chk -notcontains $cfgArgs[$ix + 1]) { $chk += $cfgArgs[$ix + 1] }
+    }
 }
 if (@($Selected | Where-Object { $ConfigTable[$_] -contains "--kd-probs" }).Count -gt 0) { $chk += $TeacherProbs }
 foreach ($f in $chk) {
