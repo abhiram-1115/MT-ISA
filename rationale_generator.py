@@ -16,6 +16,9 @@ Output: data/auxiliary/restaurant14_train_all_rationale_qwen7b.json
         (+ a .jsonl checkpoint written as rows finish; --resume skips finished ids)
 
 Usage: python rationale_generator.py [--model qwen2.5:7b] [--workers 1] [--resume] [--max-instances N]
+Laptop: python make_gen_input.py --dataset laptop
+        python rationale_generator.py --input data/processed/laptop14_train_all_gen.json \
+            --output data/auxiliary/laptop14_train_all_rationale_qwen7b.json --resume
 Needs only requests + tqdm (requirements-gen.txt) and a running `ollama serve`.
 """
 import argparse
