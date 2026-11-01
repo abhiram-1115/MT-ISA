@@ -230,6 +230,7 @@ $ConfigTable = [ordered]@{
     "lfrat_shufsame_all_gv" = @("--train-all", "--val-group-by-sentence", "--d-awl-strategy", "none", "--label-first-seq", "1.0", "--rationale-data", $RationaleData, "--shuffle-within-label")
     "mtisa_ce_all_gv" = @("--d-awl-strategy", "input", "--train-all", "--val-group-by-sentence", "--train-all-aux", $TrainAllAux, "--polarity-ce3")
     "aux0.3_all_gv" = @("--d-awl-strategy", "none", "--aux-weight", "0.3", "--train-all", "--val-group-by-sentence", "--train-all-aux", $TrainAllAux)
+    "aux0.3_all_gv_nullneu" = @("--d-awl-strategy", "none", "--aux-weight", "0.3", "--train-all", "--val-group-by-sentence", "--train-all-aux", $TrainAllAux, "--null-neutral-opinion")
     "lora_pol"      = @("--tasks", "pol")
     "lora_mtl"      = @("--tasks", "mtl", "--train-all-aux", $TrainAllAux)
     "lora_mtl_shuf" = @("--tasks", "mtl", "--train-all-aux", $TrainAllAux, "--shuffle-hints")

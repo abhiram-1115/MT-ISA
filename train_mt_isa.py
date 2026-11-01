@@ -22,6 +22,7 @@ import json
 import logging
 import math
 import random
+import re
 import sys
 from collections import Counter
 from pathlib import Path
@@ -176,6 +177,11 @@ def keep_implicit_fraction(train_instances: List[Dict], frac: float, seed: int):
     return out, impl, cnt, goal
 
 
+NEUTRAL_LIKE_RE = re.compile(
+    r"^\s*$|\b(none|neutral|no (clear |particular |specific )?(opinion|sentiment|evaluation)|"
+    r"not (mentioned|expressed|specified|stated|given)|n/?a|unspecified|unclear)\b", re.IGNORECASE)
+
+
 def has_unk_label(aux: Dict, tok) -> bool:
     """True if an aspect/opinion label can't be represented by the T5 tokenizer
     (e.g. Chinese text from the generator) - it would train on <unk>/empty targets."""
@@ -257,6 +263,7 @@ class MTISADataset(Dataset):
         aux_valid: Optional[Dict[str, bool]] = None,
         kd_probs: Optional[Dict[str, List[float]]] = None,
         rationale_by_id: Optional[Dict[str, Optional[str]]] = None,
+        null_neutral_opinion: bool = False,
     ):
         self.instances = instances
         self.tok = tokenizer
@@ -268,6 +275,7 @@ class MTISADataset(Dataset):
         self.kd_probs = kd_probs    # id -> teacher [p_pos, p_neg, p_neu] (--kd-probs)
         # id -> usable rationale text or None (--rationale-data, label-first mode)
         self.rationale_by_id = rationale_by_id
+        self.null_neutral_opinion = null_neutral_opinion  # gold neutral -> opinion target "none"
         self.conf_override = conf_override  # id -> {"aspect_confidence", "opinion_confidence"}
         self.max_length = max_length
         self.label_max_length = label_max_length
@@ -305,6 +313,8 @@ class MTISADataset(Dataset):
             aux = self.aux_by_id.get(inst["id"]) or {}   # {} only happens for masked rows
             aspect_text = (aux.get("aspect") or "").strip() or target
             opinion_text = (aux.get("opinion") or "").strip() or "none"
+            if self.null_neutral_opinion and gold == "neutral":
+                opinion_text = "none"
             if self.label_first_seq and self.rationale_by_id is not None:
                 # ONE target: "<label>. <rationale>"; without a usable rationale only "<label>."
                 # with every token after the label masked (-100) -> rest loss 0 for that row
@@ -398,7 +408,7 @@ def run_epoch(
     part_sum = {"aspect": 0.0, "opinion": 0.0, "polarity": 0.0, "label": 0.0, "rest": 0.0,
                 "ce": 0.0, "kd": 0.0}
     part_cnt = {"aspect": 0, "opinion": 0, "polarity": 0, "label": 0, "rest": 0, "ce": 0, "kd": 0}
-    ids, gold, pred = [], [], []
+    ids, gold, pred, probs = [], [], [], []
     ga_sum: Dict[str, List[float]] = {}   # group -> [sum aspect w, sum opinion w, n]
 
     if train:
@@ -469,6 +479,8 @@ def run_epoch(
 
         ids.extend(batch["instance_id"])
         pred.extend(out["polarity_logits"].argmax(dim=-1).detach().cpu().tolist())
+        probs.extend(torch.softmax(out["polarity_logits"].detach().float(), dim=-1)
+                     .cpu().numpy().astype(np.float32).tolist())
         gold.extend(batch["polarity_label_id"].detach().cpu().tolist())
         del out, loss, inputs, batch   # free graph/activations before the next step
         pbar.set_postfix(loss=f"{total_loss / n_ok:.4f}")
@@ -489,6 +501,7 @@ def run_epoch(
         "ids": ids,
         "gold": gold,
         "pred": pred,
+        "probs": probs,   # softmax over (positive, negative, neutral) label first-token logits
         "ga_stats": ({grp: {"aspect": v[0] / v[2], "opinion": v[1] / v[2], "n": v[2]}
                       for grp, v in sorted(ga_sum.items())} if ga_sum else None),
     }
@@ -606,6 +619,9 @@ def main():
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--num-workers", type=int, default=0)
     ap.add_argument("--max-instances", type=int, default=None, help="debug: cap train size")
+    ap.add_argument("--null-neutral-opinion", action="store_true",
+                    help="Aux targets: if the row's gold polarity is neutral, the opinion target is "
+                         "exactly 'none' (aspect unchanged). Not with --polarity-only.")
     ap.add_argument("--keep-implicit-frac", type=float, default=None, metavar="F",
                     help="With --train-all: after the validation split, keep only ~F of the implicit "
                          "TRAIN rows (whole sentences, stratified by gold label, seed --seed+1000); "
@@ -637,6 +653,8 @@ def main():
         raise ValueError("--polarity-ce3 cannot be combined with --label-first-seq.")
     if not (0.0 <= args.kd_alpha <= 1.0) or args.kd_temp <= 0 or not (0.0 <= args.label_smoothing < 1.0):
         raise ValueError("need 0 <= --kd-alpha <= 1, --kd-temp > 0, 0 <= --label-smoothing < 1")
+    if args.null_neutral_opinion and args.polarity_only:
+        raise ValueError("--null-neutral-opinion needs the aux tasks (not --polarity-only).")
     if args.keep_implicit_frac is not None:
         if not args.train_all:
             raise ValueError("--keep-implicit-frac needs --train-all.")
@@ -933,6 +951,17 @@ def main():
                     POLARITY_WORDS)
         del teacher
 
+    if args.null_neutral_opinion:
+        neu = [x for x in train_instances if x["gold_polarity"].lower() == "neutral"]
+        old = [((aux_by_id.get(x["id"]) or {}).get("opinion") or "").strip() for x in neu]
+        n_changed = sum(1 for o in old if o != "none")
+        n_like = sum(1 for o in old if o != "none" and NEUTRAL_LIKE_RE.search(o))
+        logger.info("--null-neutral-opinion changed %d rows (gold-neutral train rows: %d; already exactly "
+                    "'none': %d; changed rows that already had a neutral-like opinion: %d)",
+                    n_changed, len(neu), len(neu) - n_changed, n_like)
+        logger.info("--null-neutral-opinion examples: %s",
+                    [o for o in old if o != "none"][:5])
+
     train_ds = MTISADataset(train_instances, tokenizer,
                             None if args.polarity_only else aux_by_id,
                             args.conf_source, args.max_length, conf_override=conf_override,
@@ -940,7 +969,8 @@ def main():
                             label_first_seq=args.label_first_seq is not None,
                             aux_valid=train_aux_valid, kd_probs=kd_train,
                             rationale_by_id=rationale_by_id,
-                            label_max_length=96 if rationale_by_id is not None else 64)
+                            label_max_length=96 if rationale_by_id is not None else 64,
+                            null_neutral_opinion=args.null_neutral_opinion)
     if rationale_by_id is not None:
         shown = 0
         for want in (True, False):   # one row with a rationale, one without (if any)
@@ -1085,6 +1115,25 @@ def main():
         json.dump(history, f, indent=2)
     logger.info("Done. Best val macro-F1 %.4f at epoch %d", best_f1, best_epoch)
 
+    def pred_rows(res, extra=None):
+        rows = []
+        for k, (i, g, p) in enumerate(zip(res["ids"], res["gold"], res["pred"])):
+            r = {"id": i, "gold": ID_TO_POLARITY[g], "pred": ID_TO_POLARITY[p],
+                 "probs": [round(float(v), 5) for v in res["probs"][k]]}
+            if extra is not None:
+                r.update(extra(i))
+            rows.append(r)
+        return rows
+
+    # ---------------- best checkpoint on the validation rows ----------------
+    model.load_state_dict(torch.load(out_dir / "best.pt", map_location=device))
+    with torch.no_grad():
+        vb = run_epoch(model, val_loader, device, bf16=args.bf16, desc="val (best)")
+    impl_of = {x["id"]: bool(x.get("is_implicit", True)) for x in val_instances}
+    with open(out_dir / "val_predictions.json", "w", encoding="utf-8") as f:
+        json.dump(pred_rows(vb, lambda i: {"is_implicit": impl_of.get(i, True)}), f, indent=2)
+    logger.info("best checkpoint on val: Acc %.4f | macro-F1 %.4f (val_predictions.json)", vb["acc"], vb["f1"])
+
     # ---------------- optional test evaluation ----------------
     if args.test_data:
         model.load_state_dict(torch.load(out_dir / "best.pt", map_location=device))
@@ -1103,8 +1152,7 @@ def main():
             json.dump({"acc": te["acc"], "macro_f1": te["f1"], "best_epoch": best_epoch,
                        "val_f1": best_f1, "args": vars(args)}, f, indent=2)
         with open(out_dir / "test_predictions.json", "w", encoding="utf-8") as f:
-            json.dump([{"id": i, "gold": ID_TO_POLARITY[g], "pred": ID_TO_POLARITY[p]}
-                       for i, g, p in zip(te["ids"], te["gold"], te["pred"])], f, indent=2)
+            json.dump(pred_rows(te), f, indent=2)
 
         # ---- extra: ALL test rows (explicit + implicit); main metric above is unchanged ----
         if args.train_all:
