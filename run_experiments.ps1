@@ -144,6 +144,8 @@ function Invoke-Train {
     }
     if ($ExtraFlags.Count -gt 0) { $a += $ExtraFlags }
     if ($Extra -and $Extra.Count -gt 0) { $a += $Extra }
+    # configs may set their own --num-epochs (e.g. mams_only_ce); -Smoke still means 1 epoch
+    if ($Smoke -and -not $Lora) { $a += @("--num-epochs", "1") }
     & python @a 2>&1 | ForEach-Object { $_.ToString() } | Tee-Object -FilePath "$LogsDir/$Tag.log" -Append
 }
 
@@ -233,6 +235,12 @@ $ConfigTable = [ordered]@{
     "lora_mtl_shuf" = @("--tasks", "mtl", "--train-all-aux", $TrainAllAux, "--shuffle-hints")
     "lora7b_pol"    = @("--tasks", "pol", "--model-name", "Qwen/Qwen2.5-7B-Instruct", "--load-4bit", "--eval-batch-size", "8")
     "ce_all_gv"  = @("--polarity-only", "--train-all", "--val-group-by-sentence", "--polarity-ce3")
+    "ce_all_gv_imp50" = @("--polarity-only", "--train-all", "--val-group-by-sentence", "--polarity-ce3", "--keep-implicit-frac", "0.5")
+    "ce_all_gv_imp25" = @("--polarity-only", "--train-all", "--val-group-by-sentence", "--polarity-ce3", "--keep-implicit-frac", "0.25")
+    "ce_all_gv_imp0"  = @("--polarity-only", "--train-all", "--val-group-by-sentence", "--polarity-ce3", "--keep-implicit-frac", "0.0")
+    # MAMS-only training (prepare_mams.py). These flags come after the global --train-all-data /
+    # --num-epochs in the python call, and argparse keeps the last value -> they override.
+    "mams_only_ce"    = @("--polarity-only", "--train-all", "--polarity-ce3", "--train-all-data", "data/external/mams_train.json", "--val-data", "data/external/mams_val.json", "--num-epochs", "10", "--patience", "3")
     "kd_all_gv"  = @("--polarity-only", "--train-all", "--val-group-by-sentence", "--kd-probs", $TeacherProbs)
     "ls_all_gv"  = @("--polarity-only", "--train-all", "--val-group-by-sentence", "--label-smoothing", "0.1")
     "grad_align" = @("--d-awl-strategy", "grad_align")
@@ -264,7 +272,7 @@ $chk = @()
 if ($needAll.Count -gt 0) { $chk += @($TrainAll, $TestAll) }
 foreach ($name in $Selected) {   # every aux file a selected config passes via --train-all-aux
     $cfgArgs = @($ConfigTable[$name])
-    foreach ($flag in @("--train-all-aux", "--rationale-data")) {
+    foreach ($flag in @("--train-all-aux", "--rationale-data", "--train-all-data", "--val-data")) {
         $ix = [array]::IndexOf($cfgArgs, $flag)
         if ($ix -ge 0 -and $ix + 1 -lt $cfgArgs.Count -and $chk -notcontains $cfgArgs[$ix + 1]) { $chk += $cfgArgs[$ix + 1] }
     }

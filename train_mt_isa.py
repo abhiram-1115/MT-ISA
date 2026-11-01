@@ -143,6 +143,39 @@ def make_grouped_validation_split(instances: List[Dict], fraction: float, seed: 
     return train, val
 
 
+def keep_implicit_fraction(train_instances: List[Dict], frac: float, seed: int):
+    """Keep about `frac` of the IMPLICIT train rows (whole sentence groups, stratified by gold
+    label with the same 'add a group if it brings the per-class counts closer to the targets'
+    rule as make_grouped_validation_split). Explicit rows are untouched.
+    Groups are visited in random.Random(seed) order; stops at round(frac * n_implicit) rows."""
+    classes = list(POLARITY_TO_ID)
+    impl = [x for x in train_instances if x.get("is_implicit")]
+    total = Counter(x["gold_polarity"].lower() for x in impl)
+    target = {c: frac * total[c] for c in classes}
+    goal = int(round(frac * len(impl)))
+    groups: Dict[str, List[Dict]] = {}
+    for x in impl:
+        groups.setdefault(sentence_group(x), []).append(x)
+    keys = sorted(groups)
+    random.Random(seed).shuffle(keys)
+
+    def dist(cnt):
+        return sum(abs(target[c] - cnt[c]) for c in classes)
+
+    kept, cnt, n_kept = set(), Counter(), 0
+    for k in keys:
+        if n_kept >= goal:
+            break
+        g = Counter(x["gold_polarity"].lower() for x in groups[k])
+        if dist(cnt + g) < dist(cnt):
+            kept.add(k)
+            cnt += g
+            n_kept += len(groups[k])
+    out = [x for x in train_instances
+           if not x.get("is_implicit") or sentence_group(x) in kept]
+    return out, impl, cnt, goal
+
+
 def has_unk_label(aux: Dict, tok) -> bool:
     """True if an aspect/opinion label can't be represented by the T5 tokenizer
     (e.g. Chinese text from the generator) - it would train on <unk>/empty targets."""
@@ -573,6 +606,11 @@ def main():
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--num-workers", type=int, default=0)
     ap.add_argument("--max-instances", type=int, default=None, help="debug: cap train size")
+    ap.add_argument("--keep-implicit-frac", type=float, default=None, metavar="F",
+                    help="With --train-all: after the validation split, keep only ~F of the implicit "
+                         "TRAIN rows (whole sentences, stratified by gold label, seed --seed+1000); "
+                         "explicit rows and the validation set are unchanged. F=0 drops all implicit "
+                         "train rows. Default: off.")
     args = ap.parse_args()
 
     if args.label_first_seq is not None:
@@ -599,13 +637,18 @@ def main():
         raise ValueError("--polarity-ce3 cannot be combined with --label-first-seq.")
     if not (0.0 <= args.kd_alpha <= 1.0) or args.kd_temp <= 0 or not (0.0 <= args.label_smoothing < 1.0):
         raise ValueError("need 0 <= --kd-alpha <= 1, --kd-temp > 0, 0 <= --label-smoothing < 1")
+    if args.keep_implicit_frac is not None:
+        if not args.train_all:
+            raise ValueError("--keep-implicit-frac needs --train-all.")
+        if not 0.0 <= args.keep_implicit_frac <= 1.0:
+            raise ValueError("--keep-implicit-frac must be in [0, 1].")
     if args.rationale_data and args.label_first_seq is None:
         raise ValueError("--rationale-data needs --label-first-seq.")
     if args.train_all_aux and not args.train_all:
         raise ValueError("--train-all-aux needs --train-all.")
     if args.train_all:
         bad = [n for n, on in (("--drop-nonconverged", args.drop_nonconverged),
-                               ("--val-data", bool(args.val_data))) if on]
+                               ) if on]
         if args.label_first_seq is not None and not args.rationale_data:
             raise ValueError("--label-first-seq with --train-all needs --rationale-data "
                              "(aux-based label-first targets are only defined for the implicit rows).")
@@ -698,6 +741,19 @@ def main():
         train_instances = [x for x in train_instances
                            if aux_by_id[x["id"]].get("converged", False)]
         logger.info("Dropped non-converged from train: %d -> %d", before, len(train_instances))
+
+    if args.keep_implicit_frac is not None:
+        before_rows = len(train_instances)
+        before_cls = dict(Counter(x["gold_polarity"].lower() for x in train_instances))
+        train_instances, impl_before, kept_cnt, goal = keep_implicit_fraction(
+            train_instances, args.keep_implicit_frac, args.seed + 1000)
+        impl_after = [x for x in train_instances if x.get("is_implicit")]
+        logger.info("--keep-implicit-frac %.2f: implicit train rows %d -> %d (goal %d) | implicit "
+                    "classes %s -> %s", args.keep_implicit_frac, len(impl_before), len(impl_after), goal,
+                    dict(Counter(x["gold_polarity"].lower() for x in impl_before)), dict(kept_cnt))
+        logger.info("--keep-implicit-frac: train rows %d -> %d | all train classes %s -> %s "
+                    "(validation unchanged: %d rows)", before_rows, len(train_instances), before_cls,
+                    dict(Counter(x["gold_polarity"].lower() for x in train_instances)), len(val_instances))
 
     if args.aux_mask_nonconverged and not args.polarity_only:
         nc = sum(1 for x in train_instances if not aux_by_id.get(x["id"], {}).get("converged", False))
