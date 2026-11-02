@@ -865,12 +865,14 @@ def main():
             # (after the aux join; with --train-all-aux a donor may have no record -> the row
             # then has none either, and the aux-loss mask follows the donor record)
             shuffled = dict(aux_by_id)
+            n_got = sum(1 for i, d in donor.items() if d != i and d in aux_by_id)
             for i, d in donor.items():
                 if d in aux_by_id:
                     shuffled[i] = aux_by_id[d]
                 else:
                     shuffled.pop(i, None)
             aux_by_id = shuffled
+            logger.info("shuffle-hints: %d of %d train rows got another row's aux record", n_got, n)
             logger.info("--shuffle-hints: train rows now use another row's aux record "
                         "(%d rows, aspect/opinion/confidences/converged move together)", n)
             if train_aux_valid is not None:

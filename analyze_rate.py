@@ -24,11 +24,12 @@ import statistics as st
 import numpy as np
 
 LABELS = ["positive", "negative", "neutral"]
-T5_CONFIGS = "polonly_all_gv,ce_all_gv,aux0.3_all_gv,aux0.3_all_gv_nullneu,mtisa_in_all_gv"
+T5_CONFIGS = "polonly_all_gv,ce_all_gv,aux0.3_all_gv,aux0.3_all_gv_nullneu,mtisa_in_all_gv,aux0.3_all_gv_shuf"
 LORA_CONFIGS = "lora_pol,lora_mtl,lora_mtl_shuf"
 PAIRS = [("aux0.3_all_gv", "polonly_all_gv"), ("mtisa_in_all_gv", "polonly_all_gv"),
          ("aux0.3_all_gv_nullneu", "polonly_all_gv"), ("aux0.3_all_gv_nullneu", "aux0.3_all_gv"),
-         ("ce_all_gv", "polonly_all_gv"), ("lora_mtl", "lora_pol"), ("lora_mtl", "lora_mtl_shuf")]
+         ("ce_all_gv", "polonly_all_gv"), ("lora_mtl", "lora_pol"), ("lora_mtl", "lora_mtl_shuf"),
+         ("aux0.3_all_gv", "aux0.3_all_gv_shuf"), ("aux0.3_all_gv_shuf", "polonly_all_gv")]
 PAIR_METRICS = ["fr_f1", "auroc", "polar_acc", "acc", "neu_rate"]
 ALL_METRICS = ["acc", "f1", "neu_rate", "auroc", "polar_acc", "raw_polar_acc", "fr_acc", "fr_f1"]
 OUT = []
@@ -266,6 +267,22 @@ def main():
         else:
             h4.append(f"lora_mtl vs {b}: n/a (missing runs)")
     log("H4 (Qwen hints at fixed rate): " + " | ".join(h4))
+
+    rs, sp = d("aux0.3_all_gv", "aux0.3_all_gv_shuf", "auroc"), d("aux0.3_all_gv_shuf", "polonly_all_gv", "auroc")
+    if rs and sp:
+        dd = 100 * rs[0]
+        if dd >= 1.5 and rs[3] < 0.05:
+            h5 = "CONTENT MATTERS"
+        elif abs(dd) < 1.0 and not (sp[1] <= 0 <= sp[2]):
+            h5 = "CONTENT IRRELEVANT"
+        else:
+            h5 = "UNCLEAR"
+        log(f"H5 (hint content): {h5} | real - shuf d AUROC {dd:+.2f} [{100 * rs[1]:+.2f},{100 * rs[2]:+.2f}] "
+            f"p={rs[3]:.3f} (MATTERS: >= +1.5 and p < 0.05; IRRELEVANT: |d| < 1.0 and shuf vs polonly CI "
+            f"excludes 0) | shuf vs polonly d AUROC {100 * sp[0]:+.2f} [{100 * sp[1]:+.2f},{100 * sp[2]:+.2f}] "
+            f"p={sp[3]:.3f}")
+    else:
+        log("H5 (hint content): n/a (missing aux0.3_all_gv / aux0.3_all_gv_shuf / polonly_all_gv runs)")
 
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as f:
