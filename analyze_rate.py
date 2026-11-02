@@ -24,12 +24,14 @@ import statistics as st
 import numpy as np
 
 LABELS = ["positive", "negative", "neutral"]
-T5_CONFIGS = "polonly_all_gv,ce_all_gv,aux0.3_all_gv,aux0.3_all_gv_nullneu,mtisa_in_all_gv,aux0.3_all_gv_shuf"
+T5_CONFIGS = "polonly_all_gv,ce_all_gv,aux0.3_all_gv,aux0.3_all_gv_nullneu,mtisa_in_all_gv,aux0.3_all_gv_shuf,aux0.3_all_gv_shufsame"
 LORA_CONFIGS = "lora_pol,lora_mtl,lora_mtl_shuf"
 PAIRS = [("aux0.3_all_gv", "polonly_all_gv"), ("mtisa_in_all_gv", "polonly_all_gv"),
          ("aux0.3_all_gv_nullneu", "polonly_all_gv"), ("aux0.3_all_gv_nullneu", "aux0.3_all_gv"),
          ("ce_all_gv", "polonly_all_gv"), ("lora_mtl", "lora_pol"), ("lora_mtl", "lora_mtl_shuf"),
-         ("aux0.3_all_gv", "aux0.3_all_gv_shuf"), ("aux0.3_all_gv_shuf", "polonly_all_gv")]
+         ("aux0.3_all_gv", "aux0.3_all_gv_shuf"), ("aux0.3_all_gv_shuf", "polonly_all_gv"),
+         ("aux0.3_all_gv", "aux0.3_all_gv_shufsame"), ("aux0.3_all_gv_shufsame", "aux0.3_all_gv_shuf"),
+         ("aux0.3_all_gv_shufsame", "polonly_all_gv")]
 PAIR_METRICS = ["fr_f1", "auroc", "polar_acc", "acc", "neu_rate"]
 ALL_METRICS = ["acc", "f1", "neu_rate", "auroc", "polar_acc", "raw_polar_acc", "fr_acc", "fr_f1"]
 OUT = []
@@ -105,6 +107,21 @@ def ms(v, pts=True):
     return f"{st.mean(v):.2f}+/-{st.stdev(v):.2f}" if len(v) > 1 else f"{v[0]:.2f}"
 
 
+def welch(a, b):
+    """Seed-level Welch t-test (scipy.stats.ttest_ind, equal_var=False) -> (mean diff, t, p)."""
+    a, b = np.asarray(a, float), np.asarray(b, float)
+    diff = float(a.mean() - b.mean())
+    if len(a) < 2 or len(b) < 2:
+        return diff, float("nan"), float("nan")
+    try:
+        from scipy.stats import ttest_ind
+        r = ttest_ind(a, b, equal_var=False)
+        return diff, float(r.statistic), float(r.pvalue)
+    except ImportError:  # t only, p needs scipy
+        se = np.sqrt(a.var(ddof=1) / len(a) + b.var(ddof=1) / len(b))
+        return diff, float(diff / se) if se > 0 else float("nan"), float("nan")
+
+
 def ci_p(d):
     d = d[~np.isnan(d)]
     lo, hi = np.percentile(d, [2.5, 97.5])
@@ -169,11 +186,12 @@ def main():
             log(f"note: no usable runs for {cfg}")
 
     # ---- per config table ----
-    point = {}
+    point, per_seed = {}, {}
     log(f"{'config':<24}{'n':<4}" + "".join(f"{m:<16}" for m in ALL_METRICS) + "  (all in points; AUROC x100)")
     for cfg, per in runs.items():
         ms_ = {sd: metrics(P, g, args.rate) for sd, P in per.items()}
         point[cfg] = {m: float(np.nanmean([ms_[s][m] for s in ms_])) for m in ALL_METRICS}
+        per_seed[cfg] = ms_
         log(f"{cfg:<24}{len(per):<4}" + "".join(f"{ms([ms_[s][m] for s in ms_]):<16}" for m in ALL_METRICS))
     log("")
 
@@ -205,6 +223,12 @@ def main():
             diffs[(a, b, m)] = (pt, lo, hi, p)
             cells.append(f"{100 * pt:+.2f} [{100 * lo:+.2f},{100 * hi:+.2f}] p={p:.3f}".ljust(34))
         log(f"{a + ' vs ' + b:<48}" + "".join(cells))
+        wl = []
+        for m in ("auroc", "fr_f1"):
+            dm, t, pv = welch([v[m] for v in per_seed[a].values()], [v[m] for v in per_seed[b].values()])
+            diffs[(a, b, m, "welch")] = (dm, t, pv)
+            wl.append(f"{m} d {100 * dm:+.2f} t={t:.2f} p={pv:.3f}")
+        log(f"{'':<48}seed-level Welch ({len(per_seed[a])} vs {len(per_seed[b])} seeds): " + " | ".join(wl))
     log("")
 
     # ---- verdicts ----
@@ -283,6 +307,29 @@ def main():
             f"p={sp[3]:.3f}")
     else:
         log("H5 (hint content): n/a (missing aux0.3_all_gv / aux0.3_all_gv_shuf / polonly_all_gv runs)")
+    w5 = diffs.get(("aux0.3_all_gv", "aux0.3_all_gv_shuf", "auroc", "welch"))
+    if w5:
+        log(f"H5 seed-level: Welch aux0.3_all_gv vs aux0.3_all_gv_shuf AUROC d {100 * w5[0]:+.2f} "
+            f"t={w5[1]:.2f} p={w5[2]:.3f}")
+
+    r_ss = d("aux0.3_all_gv", "aux0.3_all_gv_shufsame", "auroc")
+    ss_s = d("aux0.3_all_gv_shufsame", "aux0.3_all_gv_shuf", "auroc")
+    r_s = d("aux0.3_all_gv", "aux0.3_all_gv_shuf", "auroc")
+    if r_ss and ss_s:
+        if 100 * r_ss[0] >= 1.5 and r_ss[3] < 0.05 and abs(100 * ss_s[0]) < 1.0:
+            h6 = "SENTENCE CONTENT"
+        elif 100 * ss_s[0] >= 1.5 and ss_s[3] < 0.05 and abs(100 * r_ss[0]) < 1.0:
+            h6 = "LABEL SIGNAL"
+        else:
+            h6 = "MIXED"
+        fmt = (lambda name, x: f"{name} d AUROC {100 * x[0]:+.2f} [{100 * x[1]:+.2f},{100 * x[2]:+.2f}] p={x[3]:.3f}"
+               if x else f"{name}: n/a")
+        log(f"H6 (what in the hints matters): {h6} | " + " | ".join([
+            fmt("real - shufsame", r_ss), fmt("shufsame - shuf", ss_s), fmt("real - shuf", r_s)])
+            + " (SENTENCE CONTENT: real-shufsame >= +1.5, p < 0.05, |shufsame-shuf| < 1.0; LABEL SIGNAL: "
+              "shufsame-shuf >= +1.5, p < 0.05, |real-shufsame| < 1.0)")
+    else:
+        log("H6 (what in the hints matters): n/a (missing aux0.3_all_gv / _shufsame / _shuf runs)")
 
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as f:

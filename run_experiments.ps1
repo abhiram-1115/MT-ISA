@@ -231,6 +231,7 @@ $ConfigTable = [ordered]@{
     "mtisa_ce_all_gv" = @("--d-awl-strategy", "input", "--train-all", "--val-group-by-sentence", "--train-all-aux", $TrainAllAux, "--polarity-ce3")
     "aux0.3_all_gv" = @("--d-awl-strategy", "none", "--aux-weight", "0.3", "--train-all", "--val-group-by-sentence", "--train-all-aux", $TrainAllAux)
     "aux0.3_all_gv_shuf" = @("--d-awl-strategy", "none", "--aux-weight", "0.3", "--train-all", "--val-group-by-sentence", "--train-all-aux", $TrainAllAux, "--shuffle-hints")
+    "aux0.3_all_gv_shufsame" = @("--d-awl-strategy", "none", "--aux-weight", "0.3", "--train-all", "--val-group-by-sentence", "--train-all-aux", $TrainAllAux, "--shuffle-within-label")
     "aux0.3_all_gv_nullneu" = @("--d-awl-strategy", "none", "--aux-weight", "0.3", "--train-all", "--val-group-by-sentence", "--train-all-aux", $TrainAllAux, "--null-neutral-opinion")
     "lora_pol"      = @("--tasks", "pol")
     "lora_mtl"      = @("--tasks", "mtl", "--train-all-aux", $TrainAllAux)

@@ -872,7 +872,12 @@ def main():
                 else:
                     shuffled.pop(i, None)
             aux_by_id = shuffled
-            logger.info("shuffle-hints: %d of %d train rows got another row's aux record", n_got, n)
+            if args.shuffle_within_label:
+                same = all(gold_of[i] == gold_of[d] for i, d in donor.items())
+                logger.info("shuffle-within-label: %d of %d train rows got another same-label row's aux "
+                            "record (every donor has the row's gold label: %s)", n_got, n, same)
+            else:
+                logger.info("shuffle-hints: %d of %d train rows got another row's aux record", n_got, n)
             logger.info("--shuffle-hints: train rows now use another row's aux record "
                         "(%d rows, aspect/opinion/confidences/converged move together)", n)
             if train_aux_valid is not None:
