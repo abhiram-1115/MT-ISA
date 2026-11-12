@@ -24,14 +24,20 @@ import statistics as st
 import numpy as np
 
 LABELS = ["positive", "negative", "neutral"]
-T5_CONFIGS = "polonly_all_gv,ce_all_gv,aux0.3_all_gv,aux0.3_all_gv_nullneu,mtisa_in_all_gv,aux0.3_all_gv_shuf,aux0.3_all_gv_shufsame"
+T5_CONFIGS = "polonly_all_gv,ce_all_gv,aux0.3_all_gv,aux0.3_all_gv_nullneu,mtisa_in_all_gv,aux0.3_all_gv_shuf,aux0.3_all_gv_shufsame,aux0.3_all_gv_labelword"
 LORA_CONFIGS = "lora_pol,lora_mtl,lora_mtl_shuf"
 PAIRS = [("aux0.3_all_gv", "polonly_all_gv"), ("mtisa_in_all_gv", "polonly_all_gv"),
          ("aux0.3_all_gv_nullneu", "polonly_all_gv"), ("aux0.3_all_gv_nullneu", "aux0.3_all_gv"),
          ("ce_all_gv", "polonly_all_gv"), ("lora_mtl", "lora_pol"), ("lora_mtl", "lora_mtl_shuf"),
          ("aux0.3_all_gv", "aux0.3_all_gv_shuf"), ("aux0.3_all_gv_shuf", "polonly_all_gv"),
          ("aux0.3_all_gv", "aux0.3_all_gv_shufsame"), ("aux0.3_all_gv_shufsame", "aux0.3_all_gv_shuf"),
-         ("aux0.3_all_gv_shufsame", "polonly_all_gv")]
+         ("aux0.3_all_gv_shufsame", "polonly_all_gv"),
+         ("aux0.3_all_gv", "aux0.3_all_gv_labelword"), ("aux0.3_all_gv_labelword", "polonly_all_gv"),
+         ("aux0.3_all_gv_labelword", "aux0.3_all_gv_shufsame")]
+DATASETS = {  # --dataset defaults: models dir, implicit test file, all-rows train file
+    "restaurant": ("models", "data/processed/test_implicit.json", "data/processed/restaurant14_train_all.json"),
+    "laptop": ("models_laptop", "data/processed/laptop14_test_implicit.json", "data/processed/laptop14_train_all.json"),
+}
 PAIR_METRICS = ["fr_f1", "auroc", "polar_acc", "acc", "neu_rate"]
 ALL_METRICS = ["acc", "f1", "neu_rate", "auroc", "polar_acc", "raw_polar_acc", "fr_acc", "fr_f1"]
 OUT = []
@@ -132,21 +138,42 @@ def ci_p(d):
 # ----------------------------------------------------------------------------
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--models-dir", default="models")
-    ap.add_argument("--test-implicit", default="data/processed/test_implicit.json")
-    ap.add_argument("--train-all", default="data/processed/restaurant14_train_all.json",
-                    help="only used to print the implicit-train neutral share for reference")
+    ap.add_argument("--dataset", choices=list(DATASETS), default="restaurant",
+                    help="sets the defaults of --models-dir / --test-implicit / --train-all; "
+                         "laptop also skips the LoRA configs")
+    ap.add_argument("--models-dir", default=None)
+    ap.add_argument("--test-implicit", default=None)
+    ap.add_argument("--train-all", default=None,
+                    help="all-rows train file; its implicit rows give the default --rate")
     ap.add_argument("--t5-configs", default=T5_CONFIGS)
     ap.add_argument("--t5-seeds", default="12,13,14,15,16,17")
     ap.add_argument("--t5-lr", default="1e-4")
     ap.add_argument("--lora-configs", default=LORA_CONFIGS)
     ap.add_argument("--lora-seeds", default="6,7,8,9,10,11")
     ap.add_argument("--lora-lr", default="2e-4")
-    ap.add_argument("--rate", type=float, default=0.409, help="neutral share of the implicit TRAIN rows")
+    ap.add_argument("--rate", type=float, default=None,
+                    help="fixed neutral rate; default: neutral share of the implicit rows of --train-all "
+                         "(rounded to 3 decimals; restaurant -> 0.409)")
     ap.add_argument("--boot", type=int, default=2000)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out", default="results/rate_report.txt")
     args = ap.parse_args()
+    d_models, d_test, d_train = DATASETS[args.dataset]
+    args.models_dir = args.models_dir or d_models
+    args.test_implicit = args.test_implicit or d_test
+    args.train_all = args.train_all or d_train
+    if args.dataset == "laptop":
+        args.lora_configs = ""   # no LoRA runs for laptop
+
+    train_share = None
+    if os.path.exists(args.train_all):
+        tr = [x for x in json.load(open(args.train_all, encoding="utf-8")) if x.get("is_implicit")]
+        if tr:
+            train_share = float(np.mean([x["gold_polarity"].lower() == "neutral" for x in tr]))
+    if args.rate is None:
+        if train_share is None:
+            raise SystemExit(f"--rate not given and no implicit rows found in {args.train_all}")
+        args.rate = round(train_share, 3)
 
     test_path = args.test_implicit if os.path.exists(args.test_implicit) else \
         "data/processed/restaurant14_test_implicit.json"
@@ -155,14 +182,11 @@ def main():
     g = np.array([LABELS.index(r["gold_polarity"].lower()) for r in test])
     N = len(ids)
     k = int(round(args.rate * N))
-    log(f"RATE-CONTROLLED ANALYSIS | {N} implicit test rows ({test_path}) | fixed rate R = {args.rate} "
-        f"-> {k} neutral predictions per run")
-    if os.path.exists(args.train_all):
-        tr = [x for x in json.load(open(args.train_all, encoding="utf-8")) if x.get("is_implicit")]
-        if tr:
-            share = np.mean([x["gold_polarity"].lower() == "neutral" for x in tr])
-            log(f"(reference: neutral share of the implicit rows in {args.train_all}: {share:.3f}; R is fixed "
-                f"at {args.rate}, test labels are never used for R)")
+    log(f"RATE-CONTROLLED ANALYSIS | dataset {args.dataset} | models {args.models_dir} | {N} implicit test rows "
+        f"({test_path}) | fixed rate R = {args.rate} -> {k} neutral predictions per run")
+    if train_share is not None:
+        log(f"(neutral share of the implicit rows in {args.train_all}: {train_share:.4f} -> R = {args.rate}; "
+            f"test labels are never used for R)")
     log("")
 
     # ---- load runs: cfg -> seed -> P (N,3) ----
@@ -181,9 +205,9 @@ def main():
             P = np.array([rows[i]["probs"] for i in ids], float)
             P = P / P.sum(1, keepdims=True)
             runs.setdefault(cfg, {})[sd] = P
-    for cfg, _, _, _ in specs:
-        if cfg not in runs:
-            log(f"note: no usable runs for {cfg}")
+    absent = [cfg for cfg, _, _, _ in specs if cfg not in runs]
+    if absent:
+        log(f"(no runs, skipped: {', '.join(absent)})")
 
     # ---- per config table ----
     point, per_seed = {}, {}
@@ -210,11 +234,10 @@ def main():
 
     diffs = {}
     log(f"PAIRED BOOTSTRAP ({args.boot} resamples of test rows; A - B; points)")
-    log(f"{'A vs B':<48}" + "".join(f"{m:<34}" for m in PAIR_METRICS))
+    log(f"{'A vs B':<54}" + "".join(f"{m:<34}" for m in PAIR_METRICS))
     for a, b in PAIRS:
         if a not in runs or b not in runs:
-            log(f"{a + ' vs ' + b:<48}n/a (missing runs)")
-            continue
+            continue   # missing configs are skipped quietly
         cells = []
         for m in PAIR_METRICS:
             d = boot[a][m] - boot[b][m]
@@ -222,13 +245,13 @@ def main():
             pt = point[a][m] - point[b][m]
             diffs[(a, b, m)] = (pt, lo, hi, p)
             cells.append(f"{100 * pt:+.2f} [{100 * lo:+.2f},{100 * hi:+.2f}] p={p:.3f}".ljust(34))
-        log(f"{a + ' vs ' + b:<48}" + "".join(cells))
+        log(f"{a + ' vs ' + b:<54}" + "".join(cells))
         wl = []
         for m in ("auroc", "fr_f1"):
             dm, t, pv = welch([v[m] for v in per_seed[a].values()], [v[m] for v in per_seed[b].values()])
             diffs[(a, b, m, "welch")] = (dm, t, pv)
             wl.append(f"{m} d {100 * dm:+.2f} t={t:.2f} p={pv:.3f}")
-        log(f"{'':<48}seed-level Welch ({len(per_seed[a])} vs {len(per_seed[b])} seeds): " + " | ".join(wl))
+        log(f"{'':<54}seed-level Welch ({len(per_seed[a])} vs {len(per_seed[b])} seeds): " + " | ".join(wl))
     log("")
 
     # ---- verdicts ----
@@ -330,6 +353,25 @@ def main():
               "shufsame-shuf >= +1.5, p < 0.05, |real-shufsame| < 1.0)")
     else:
         log("H6 (what in the hints matters): n/a (missing aux0.3_all_gv / _shufsame / _shuf runs)")
+
+    r_lw = d("aux0.3_all_gv", "aux0.3_all_gv_labelword", "auroc")
+    lw_p = d("aux0.3_all_gv_labelword", "polonly_all_gv", "auroc")
+    lw_ss = d("aux0.3_all_gv_labelword", "aux0.3_all_gv_shufsame", "auroc")
+    if r_lw and lw_p:
+        if abs(100 * r_lw[0]) < 1.0 and 100 * lw_p[0] >= 1.5 and lw_p[3] < 0.05:
+            h7 = "LABEL COPY SUFFICES"
+        elif 100 * r_lw[0] >= 1.5 and r_lw[3] < 0.05:
+            h7 = "HINT TEXT MATTERS"
+        else:
+            h7 = "MIXED"
+        fmt7 = (lambda name, x: f"{name} d AUROC {100 * x[0]:+.2f} [{100 * x[1]:+.2f},{100 * x[2]:+.2f}] p={x[3]:.3f}"
+                if x else f"{name}: n/a")
+        log(f"H7 (label copy vs hint text): {h7} | " + " | ".join([
+            fmt7("real - labelword", r_lw), fmt7("labelword - polonly", lw_p), fmt7("labelword - shufsame", lw_ss)])
+            + " (LABEL COPY SUFFICES: |real-labelword| < 1.0 and labelword-polonly >= +1.5, p < 0.05; "
+              "HINT TEXT MATTERS: real-labelword >= +1.5, p < 0.05)")
+    else:
+        log("H7 (label copy vs hint text): n/a (missing aux0.3_all_gv / _labelword / polonly_all_gv runs)")
 
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as f:

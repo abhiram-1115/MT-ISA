@@ -264,6 +264,7 @@ class MTISADataset(Dataset):
         kd_probs: Optional[Dict[str, List[float]]] = None,
         rationale_by_id: Optional[Dict[str, Optional[str]]] = None,
         null_neutral_opinion: bool = False,
+        opinion_label_word: bool = False,
     ):
         self.instances = instances
         self.tok = tokenizer
@@ -276,6 +277,7 @@ class MTISADataset(Dataset):
         # id -> usable rationale text or None (--rationale-data, label-first mode)
         self.rationale_by_id = rationale_by_id
         self.null_neutral_opinion = null_neutral_opinion  # gold neutral -> opinion target "none"
+        self.opinion_label_word = opinion_label_word      # opinion target = gold polarity word
         self.conf_override = conf_override  # id -> {"aspect_confidence", "opinion_confidence"}
         self.max_length = max_length
         self.label_max_length = label_max_length
@@ -315,6 +317,8 @@ class MTISADataset(Dataset):
             opinion_text = (aux.get("opinion") or "").strip() or "none"
             if self.null_neutral_opinion and gold == "neutral":
                 opinion_text = "none"
+            if self.opinion_label_word:   # --opinion-target label (prompt still uses aspect_text)
+                opinion_text = gold
             if self.label_first_seq and self.rationale_by_id is not None:
                 # ONE target: "<label>. <rationale>"; without a usable rationale only "<label>."
                 # with every token after the label masked (-100) -> rest loss 0 for that row
@@ -619,6 +623,9 @@ def main():
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--num-workers", type=int, default=0)
     ap.add_argument("--max-instances", type=int, default=None, help="debug: cap train size")
+    ap.add_argument("--opinion-target", choices=["hint", "label"], default="hint",
+                    help="label: the opinion target of every TRAIN row is the gold polarity word "
+                         "(aspect target and opinion prompt unchanged; val/test untouched).")
     ap.add_argument("--null-neutral-opinion", action="store_true",
                     help="Aux targets: if the row's gold polarity is neutral, the opinion target is "
                          "exactly 'none' (aspect unchanged). Not with --polarity-only.")
@@ -653,6 +660,13 @@ def main():
         raise ValueError("--polarity-ce3 cannot be combined with --label-first-seq.")
     if not (0.0 <= args.kd_alpha <= 1.0) or args.kd_temp <= 0 or not (0.0 <= args.label_smoothing < 1.0):
         raise ValueError("need 0 <= --kd-alpha <= 1, --kd-temp > 0, 0 <= --label-smoothing < 1")
+    if args.opinion_target == "label":
+        bad = [n for n, on in (("--polarity-only", args.polarity_only),
+                               ("--shuffle-hints", args.shuffle_hints),
+                               ("--shuffle-within-label", args.shuffle_within_label),
+                               ("--null-neutral-opinion", args.null_neutral_opinion)) if on]
+        if bad:
+            raise ValueError("--opinion-target label cannot be combined with: " + ", ".join(bad))
     if args.null_neutral_opinion and args.polarity_only:
         raise ValueError("--null-neutral-opinion needs the aux tasks (not --polarity-only).")
     if args.keep_implicit_frac is not None:
@@ -977,7 +991,22 @@ def main():
                             aux_valid=train_aux_valid, kd_probs=kd_train,
                             rationale_by_id=rationale_by_id,
                             label_max_length=96 if rationale_by_id is not None else 64,
-                            null_neutral_opinion=args.null_neutral_opinion)
+                            null_neutral_opinion=args.null_neutral_opinion,
+                            opinion_label_word=args.opinion_target == "label")
+    if args.opinion_target == "label":
+        n_word, n_masked, examples = 0, 0, []
+        for k in range(len(train_ds)):
+            it = train_ds[k]
+            if "opinion_labels" not in it:
+                continue
+            word = tokenizer.decode(it["opinion_labels"], skip_special_tokens=True).strip()
+            n_word += word in POLARITY_WORDS
+            n_masked += it.get("aux_mask", 1.0) == 0.0
+            if len(examples) < 3:
+                examples.append((train_instances[k]["gold_polarity"].lower(), word))
+        logger.info("opinion-target=label: %d of %d train rows now have the gold label word as opinion "
+                    "target (%d of them aux-masked, loss 0) | examples (gold, decoded target): %s",
+                    n_word, len(train_ds), n_masked, examples)
     if rationale_by_id is not None:
         shown = 0
         for want in (True, False):   # one row with a rationale, one without (if any)
