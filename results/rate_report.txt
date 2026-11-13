@@ -1,0 +1,29 @@
+RATE-CONTROLLED ANALYSIS | 267 implicit test rows (data/processed/test_implicit.json) | fixed rate R = 0.409 -> 109 neutral predictions per run
+(reference: neutral share of the implicit rows in data/processed/restaurant14_train_all.json: 0.409; R is fixed at 0.409, test labels are never used for R)
+
+note: no usable runs for lora_mtl
+note: no usable runs for lora_mtl_shuf
+config                  n   acc             f1              neu_rate        auroc           polar_acc       raw_polar_acc   fr_acc          fr_f1             (all in points; AUROC x100)
+polonly_all_gv          6   65.73+/-2.17    65.40+/-1.90    32.96+/-3.79    81.68+/-1.66    87.18+/-1.35    78.33+/-2.14    68.29+/-1.05    67.10+/-1.02    
+ce_all_gv               6   64.86+/-2.30    64.69+/-1.99    30.84+/-3.66    80.64+/-2.44    88.21+/-1.51    79.87+/-2.25    67.35+/-1.60    66.31+/-1.63    
+aux0.3_all_gv           6   65.54+/-3.49    65.31+/-3.56    31.02+/-2.41    83.76+/-1.74    88.08+/-2.27    80.38+/-2.78    69.48+/-2.21    68.29+/-2.50    
+aux0.3_all_gv_nullneu   6   65.11+/-2.25    64.93+/-1.98    30.40+/-3.63    83.74+/-1.43    87.56+/-1.64    80.00+/-1.95    68.35+/-1.99    66.95+/-2.06    
+mtisa_in_all_gv         6   65.61+/-2.83    65.29+/-2.70    32.15+/-3.32    82.70+/-2.23    87.18+/-2.16    79.23+/-2.38    69.66+/-2.12    68.56+/-2.14    
+lora_pol                6   73.72+/-1.45    73.40+/-1.71    39.01+/-2.77    84.40+/-0.68    92.18+/-2.03    82.82+/-3.36    73.78+/-1.71    73.23+/-1.88    
+
+PAIRED BOOTSTRAP (2000 resamples of test rows; A - B; points)
+A vs B                                          fr_f1                             auroc                             polar_acc                         acc                               neu_rate                          
+aux0.3_all_gv vs polonly_all_gv                 +1.19 [-0.58,+2.66] p=0.192       +2.08 [+0.77,+3.39] p=0.000       +0.90 [-0.41,+2.25] p=0.204       -0.19 [-1.87,+1.50] p=0.873       -1.94 [-3.62,-0.37] p=0.018       
+mtisa_in_all_gv vs polonly_all_gv               +1.46 [-0.55,+3.04] p=0.163       +1.02 [-0.34,+2.47] p=0.161       +0.00 [-1.72,+1.64] p=0.992       -0.12 [-1.87,+1.69] p=0.922       -0.81 [-2.43,+0.75] p=0.319       
+aux0.3_all_gv_nullneu vs polonly_all_gv         -0.16 [-1.87,+1.92] p=0.988       +2.07 [+0.81,+3.48] p=0.000       +0.38 [-0.87,+1.75] p=0.588       -0.62 [-2.37,+1.25] p=0.537       -2.56 [-4.37,-0.81] p=0.001       
+aux0.3_all_gv_nullneu vs aux0.3_all_gv          -1.35 [-2.91,+0.59] p=0.209       -0.01 [-0.88,+0.83] p=0.940       -0.51 [-2.01,+0.87] p=0.555       -0.44 [-2.06,+1.25] p=0.650       -0.62 [-2.25,+0.94] p=0.502       
+ce_all_gv vs polonly_all_gv                     -0.80 [-2.18,+0.68] p=0.267       -1.04 [-1.97,-0.12] p=0.024       +1.03 [+0.11,+2.08] p=0.044       -0.87 [-2.31,+0.50] p=0.248       -2.12 [-3.62,-0.75] p=0.002       
+lora_mtl vs lora_pol                            n/a (missing runs)
+lora_mtl vs lora_mtl_shuf                       n/a (missing runs)
+
+VERDICTS
+H1 (hint content is a rate shift): REJECTED | aux0.3_all_gv vs polonly: |d fixed-rate F1| = 1.19 pt (>= 1.0), d AUROC +2.08 CI [+0.77,+3.39] (excludes 0) | mtisa_in_all_gv vs polonly: |d fixed-rate F1| = 1.46 pt (>= 1.0), d AUROC +1.02 CI [-0.34,+2.47] (includes 0) | fails: aux0.3_all_gv vs polonly; mtisa_in_all_gv vs polonly
+H2 (nullneu restores the neutral rate): REJECTED | predicted-neutral rate nullneu 30.40% vs polonly 32.96% (need >= 31.96) -> fails | raw polar accuracy gain +1.67 pt (need < 1.0) -> fails
+LEAD (method signal): NO | nullneu vs polonly d fixed-rate F1 -0.16 pt (p=0.988; need >= +1.50 and p < 0.10) | d AUROC +2.07 (need > 0)
+H3 (classification loss is real): REJECTED | ce vs polonly d fixed-rate F1 -0.80 pt (p=0.267; need > 0 and p < 0.10)
+H4 (Qwen hints at fixed rate): lora_mtl vs lora_pol: n/a (missing runs) | lora_mtl vs lora_mtl_shuf: n/a (missing runs)
