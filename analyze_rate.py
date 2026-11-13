@@ -24,7 +24,7 @@ import statistics as st
 import numpy as np
 
 LABELS = ["positive", "negative", "neutral"]
-T5_CONFIGS = "polonly_all_gv,ce_all_gv,aux0.3_all_gv,aux0.3_all_gv_nullneu,mtisa_in_all_gv,aux0.3_all_gv_shuf,aux0.3_all_gv_shufsame,aux0.3_all_gv_labelword"
+T5_CONFIGS = "polonly_all_gv,ce_all_gv,aux0.3_all_gv,aux0.3_all_gv_nullneu,mtisa_in_all_gv,aux0.3_all_gv_shuf,aux0.3_all_gv_shufsame,aux0.3_all_gv_labelword,aux0.3_all_gv_nollm"
 LORA_CONFIGS = "lora_pol,lora_mtl,lora_mtl_shuf"
 PAIRS = [("aux0.3_all_gv", "polonly_all_gv"), ("mtisa_in_all_gv", "polonly_all_gv"),
          ("aux0.3_all_gv_nullneu", "polonly_all_gv"), ("aux0.3_all_gv_nullneu", "aux0.3_all_gv"),
@@ -33,7 +33,9 @@ PAIRS = [("aux0.3_all_gv", "polonly_all_gv"), ("mtisa_in_all_gv", "polonly_all_g
          ("aux0.3_all_gv", "aux0.3_all_gv_shufsame"), ("aux0.3_all_gv_shufsame", "aux0.3_all_gv_shuf"),
          ("aux0.3_all_gv_shufsame", "polonly_all_gv"),
          ("aux0.3_all_gv", "aux0.3_all_gv_labelword"), ("aux0.3_all_gv_labelword", "polonly_all_gv"),
-         ("aux0.3_all_gv_labelword", "aux0.3_all_gv_shufsame")]
+         ("aux0.3_all_gv_labelword", "aux0.3_all_gv_shufsame"),
+         ("aux0.3_all_gv", "aux0.3_all_gv_nollm"), ("aux0.3_all_gv_nollm", "polonly_all_gv"),
+         ("aux0.3_all_gv_labelword", "aux0.3_all_gv_nollm")]
 DATASETS = {  # --dataset defaults: models dir, implicit test file, all-rows train file
     "restaurant": ("models", "data/processed/test_implicit.json", "data/processed/restaurant14_train_all.json"),
     "laptop": ("models_laptop", "data/processed/laptop14_test_implicit.json", "data/processed/laptop14_train_all.json"),
@@ -372,6 +374,25 @@ def main():
               "HINT TEXT MATTERS: real-labelword >= +1.5, p < 0.05)")
     else:
         log("H7 (label copy vs hint text): n/a (missing aux0.3_all_gv / _labelword / polonly_all_gv runs)")
+
+    r_nl = d("aux0.3_all_gv", "aux0.3_all_gv_nollm", "auroc")
+    nl_p = d("aux0.3_all_gv_nollm", "polonly_all_gv", "auroc")
+    lw_nl = d("aux0.3_all_gv_labelword", "aux0.3_all_gv_nollm", "auroc")
+    if r_nl and nl_p:
+        if abs(100 * r_nl[0]) < 1.0 and 100 * nl_p[0] >= 1.5 and nl_p[3] < 0.05:
+            h8 = "LLM NOT NEEDED"
+        elif 100 * r_nl[0] >= 1.5 and r_nl[3] < 0.05:
+            h8 = "LLM ASPECT MATTERS"
+        else:
+            h8 = "MIXED"
+        fmt8 = (lambda name, x: f"{name} d AUROC {100 * x[0]:+.2f} [{100 * x[1]:+.2f},{100 * x[2]:+.2f}] p={x[3]:.3f}"
+                if x else f"{name}: n/a")
+        log(f"H8 (is the LLM needed): {h8} | " + " | ".join([
+            fmt8("real - nollm", r_nl), fmt8("nollm - polonly", nl_p), fmt8("labelword - nollm", lw_nl)])
+            + " (LLM NOT NEEDED: |real-nollm| < 1.0 and nollm-polonly >= +1.5, p < 0.05; "
+              "LLM ASPECT MATTERS: real-nollm >= +1.5, p < 0.05)")
+    else:
+        log("H8 (is the LLM needed): n/a (missing aux0.3_all_gv / _nollm / polonly_all_gv runs)")
 
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as f:

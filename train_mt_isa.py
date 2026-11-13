@@ -265,6 +265,7 @@ class MTISADataset(Dataset):
         rationale_by_id: Optional[Dict[str, Optional[str]]] = None,
         null_neutral_opinion: bool = False,
         opinion_label_word: bool = False,
+        aspect_target_term: bool = False,
     ):
         self.instances = instances
         self.tok = tokenizer
@@ -278,6 +279,7 @@ class MTISADataset(Dataset):
         self.rationale_by_id = rationale_by_id
         self.null_neutral_opinion = null_neutral_opinion  # gold neutral -> opinion target "none"
         self.opinion_label_word = opinion_label_word      # opinion target = gold polarity word
+        self.aspect_target_term = aspect_target_term      # aspect target (and opinion-prompt aspect) = target term
         self.conf_override = conf_override  # id -> {"aspect_confidence", "opinion_confidence"}
         self.max_length = max_length
         self.label_max_length = label_max_length
@@ -314,6 +316,8 @@ class MTISADataset(Dataset):
         if self.aux_by_id is not None:
             aux = self.aux_by_id.get(inst["id"]) or {}   # {} only happens for masked rows
             aspect_text = (aux.get("aspect") or "").strip() or target
+            if self.aspect_target_term:   # --aspect-target target (also used by the opinion prompt)
+                aspect_text = target
             opinion_text = (aux.get("opinion") or "").strip() or "none"
             if self.null_neutral_opinion and gold == "neutral":
                 opinion_text = "none"
@@ -626,6 +630,9 @@ def main():
     ap.add_argument("--opinion-target", choices=["hint", "label"], default="hint",
                     help="label: the opinion target of every TRAIN row is the gold polarity word "
                          "(aspect target and opinion prompt unchanged; val/test untouched).")
+    ap.add_argument("--aspect-target", choices=["hint", "target"], default="hint",
+                    help="target: the aspect target of every TRAIN row is the row's target term, and the "
+                         "opinion prompt uses it as the aspect text (val/test untouched).")
     ap.add_argument("--null-neutral-opinion", action="store_true",
                     help="Aux targets: if the row's gold polarity is neutral, the opinion target is "
                          "exactly 'none' (aspect unchanged). Not with --polarity-only.")
@@ -660,13 +667,16 @@ def main():
         raise ValueError("--polarity-ce3 cannot be combined with --label-first-seq.")
     if not (0.0 <= args.kd_alpha <= 1.0) or args.kd_temp <= 0 or not (0.0 <= args.label_smoothing < 1.0):
         raise ValueError("need 0 <= --kd-alpha <= 1, --kd-temp > 0, 0 <= --label-smoothing < 1")
-    if args.opinion_target == "label":
-        bad = [n for n, on in (("--polarity-only", args.polarity_only),
-                               ("--shuffle-hints", args.shuffle_hints),
-                               ("--shuffle-within-label", args.shuffle_within_label),
-                               ("--null-neutral-opinion", args.null_neutral_opinion)) if on]
+    for flag, on in (("--opinion-target label", args.opinion_target == "label"),
+                     ("--aspect-target target", args.aspect_target == "target")):
+        if not on:
+            continue
+        bad = [n for n, on2 in (("--polarity-only", args.polarity_only),
+                                ("--shuffle-hints", args.shuffle_hints),
+                                ("--shuffle-within-label", args.shuffle_within_label),
+                                ("--null-neutral-opinion", args.null_neutral_opinion)) if on2]
         if bad:
-            raise ValueError("--opinion-target label cannot be combined with: " + ", ".join(bad))
+            raise ValueError(f"{flag} cannot be combined with: " + ", ".join(bad))
     if args.null_neutral_opinion and args.polarity_only:
         raise ValueError("--null-neutral-opinion needs the aux tasks (not --polarity-only).")
     if args.keep_implicit_frac is not None:
@@ -992,7 +1002,21 @@ def main():
                             rationale_by_id=rationale_by_id,
                             label_max_length=96 if rationale_by_id is not None else 64,
                             null_neutral_opinion=args.null_neutral_opinion,
-                            opinion_label_word=args.opinion_target == "label")
+                            opinion_label_word=args.opinion_target == "label",
+                            aspect_target_term=args.aspect_target == "target")
+    if args.aspect_target == "target":
+        norm_ = lambda t: " ".join(str(t).split()).lower()
+        n_term, examples = 0, []
+        for k in range(len(train_ds)):
+            it = train_ds[k]
+            if "aspect_labels" not in it:
+                continue
+            dec = tokenizer.decode(it["aspect_labels"], skip_special_tokens=True).strip()
+            n_term += norm_(dec) == norm_(train_instances[k]["target"])
+            if len(examples) < 3:
+                examples.append((train_instances[k]["target"], dec))
+        logger.info("aspect-target=target: %d of %d train rows now have the target term as aspect target | "
+                    "examples (target, decoded aspect target): %s", n_term, len(train_ds), examples)
     if args.opinion_target == "label":
         n_word, n_masked, examples = 0, 0, []
         for k in range(len(train_ds)):
