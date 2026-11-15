@@ -1,12 +1,14 @@
 RATE-CONTROLLED ANALYSIS | dataset laptop | models models_laptop | 175 implicit test rows (data/processed/laptop14_test_implicit.json) | fixed rate R = 0.423 -> 74 neutral predictions per run
 (neutral share of the implicit rows in data/processed/laptop14_train_all.json: 0.4232 -> R = 0.423; test labels are never used for R)
 
-(no runs, skipped: ce_all_gv, aux0.3_all_gv_nullneu, mtisa_in_all_gv, aux0.3_all_gv_labelword)
+(no runs, skipped: ce_all_gv, aux0.3_all_gv_nullneu, mtisa_in_all_gv)
 config                  n   acc             f1              neu_rate        auroc           polar_acc       raw_polar_acc   fr_acc          fr_f1             (all in points; AUROC x100)
 polonly_all_gv          6   75.71+/-1.72    72.39+/-1.53    51.33+/-3.68    87.43+/-0.59    88.80+/-1.83    79.69+/-3.70    70.38+/-1.11    68.28+/-1.33    
 aux0.3_all_gv           6   76.76+/-2.28    72.65+/-2.53    55.43+/-3.88    87.77+/-1.01    88.54+/-2.74    75.78+/-4.61    69.62+/-1.51    67.41+/-1.85    
 aux0.3_all_gv_shuf      6   75.24+/-3.31    71.77+/-2.38    52.00+/-7.26    86.92+/-0.90    89.58+/-1.28    78.39+/-5.54    70.86+/-0.81    68.62+/-0.94    
 aux0.3_all_gv_shufsame  6   75.81+/-2.70    72.68+/-2.58    51.52+/-4.33    86.93+/-1.19    90.89+/-1.83    80.21+/-4.03    70.38+/-1.59    68.45+/-1.82    
+aux0.3_all_gv_labelword 6   73.81+/-2.59    70.95+/-2.39    49.05+/-2.90    87.57+/-1.51    90.62+/-1.40    80.73+/-2.13    71.05+/-2.25    69.13+/-2.31    
+aux0.3_all_gv_nollm     6   74.95+/-2.09    72.07+/-1.99    50.38+/-2.86    87.21+/-0.53    90.62+/-2.21    80.47+/-2.37    70.95+/-1.11    69.13+/-1.53    
 
 PAIRED BOOTSTRAP (2000 resamples of test rows; A - B; points)
 A vs B                                                fr_f1                             auroc                             polar_acc                         acc                               neu_rate                          
@@ -22,6 +24,18 @@ aux0.3_all_gv_shufsame vs aux0.3_all_gv_shuf          -0.17 [-2.20,+2.31] p=0.99
                                                       seed-level Welch (6 vs 6 seeds): auroc d +0.01 t=0.02 p=0.985 | fr_f1 d -0.17 t=-0.20 p=0.845
 aux0.3_all_gv_shufsame vs polonly_all_gv              +0.17 [-2.05,+1.90] p=0.921       -0.50 [-1.72,+0.71] p=0.374       +2.08 [+0.26,+4.11] p=0.038       +0.10 [-1.81,+2.00] p=0.962       +0.19 [-1.81,+2.10] p=0.899       
                                                       seed-level Welch (6 vs 6 seeds): auroc d -0.50 t=-0.92 p=0.386 | fr_f1 d +0.17 t=0.18 p=0.860
+aux0.3_all_gv vs aux0.3_all_gv_labelword              -1.72 [-3.25,+0.76] p=0.202       +0.20 [-0.69,+1.04] p=0.625       -2.08 [-4.36,-0.26] p=0.033       +2.95 [+0.76,+5.33] p=0.009       +6.38 [+4.48,+8.48] p=0.000       
+                                                      seed-level Welch (6 vs 6 seeds): auroc d +0.20 t=0.27 p=0.793 | fr_f1 d -1.72 t=-1.42 p=0.187
+aux0.3_all_gv_labelword vs polonly_all_gv             +0.85 [-1.85,+2.36] p=0.761       +0.14 [-1.03,+1.19] p=0.834       +1.82 [-0.74,+4.69] p=0.196       -1.90 [-4.10,+0.00] p=0.064       -2.29 [-4.29,-0.29] p=0.024       
+                                                      seed-level Welch (6 vs 6 seeds): auroc d +0.14 t=0.21 p=0.837 | fr_f1 d +0.85 t=0.78 p=0.458
+aux0.3_all_gv_labelword vs aux0.3_all_gv_shufsame     +0.68 [-1.71,+2.60] p=0.723       +0.64 [-0.59,+1.85] p=0.305       -0.26 [-3.16,+2.82] p=0.923       -2.00 [-4.19,+0.19] p=0.079       -2.48 [-4.67,-0.19] p=0.035       
+                                                      seed-level Welch (6 vs 6 seeds): auroc d +0.64 t=0.82 p=0.434 | fr_f1 d +0.68 t=0.57 p=0.583
+aux0.3_all_gv vs aux0.3_all_gv_nollm                  -1.71 [-3.92,+0.53] p=0.152       +0.56 [-0.73,+1.75] p=0.379       -2.08 [-5.82,+0.76] p=0.194       +1.81 [-0.38,+4.00] p=0.130       +5.05 [+3.14,+7.24] p=0.000       
+                                                      seed-level Welch (6 vs 6 seeds): auroc d +0.56 t=1.20 p=0.267 | fr_f1 d -1.71 t=-1.75 p=0.112
+aux0.3_all_gv_nollm vs polonly_all_gv                 +0.85 [-1.04,+2.29] p=0.500       -0.22 [-1.42,+0.94] p=0.648       +1.82 [-0.27,+4.43] p=0.120       -0.76 [-2.57,+0.95] p=0.384       -0.95 [-2.86,+0.95] p=0.301       
+                                                      seed-level Welch (6 vs 6 seeds): auroc d -0.22 t=-0.66 p=0.521 | fr_f1 d +0.85 t=1.02 p=0.332
+aux0.3_all_gv_labelword vs aux0.3_all_gv_nollm        +0.00 [-2.77,+1.86] p=0.840       +0.36 [-0.73,+1.36] p=0.498       +0.00 [-3.89,+3.15] p=0.977       -1.14 [-3.05,+0.67] p=0.226       -1.33 [-3.05,+0.38] p=0.145       
+                                                      seed-level Welch (6 vs 6 seeds): auroc d +0.36 t=0.55 p=0.604 | fr_f1 d +0.00 t=0.00 p=0.998
 
 VERDICTS
 H1 (hint content is a rate shift): n/a (missing runs)
@@ -32,4 +46,5 @@ H4 (Qwen hints at fixed rate): lora_mtl vs lora_pol: n/a (missing runs) | lora_m
 H5 (hint content): UNCLEAR | real - shuf d AUROC +0.85 [-0.34,+2.11] p=0.175 (MATTERS: >= +1.5 and p < 0.05; IRRELEVANT: |d| < 1.0 and shuf vs polonly CI excludes 0) | shuf vs polonly d AUROC -0.51 [-1.76,+0.59] p=0.367
 H5 seed-level: Welch aux0.3_all_gv vs aux0.3_all_gv_shuf AUROC d +0.85 t=1.55 p=0.153
 H6 (what in the hints matters): MIXED | real - shufsame d AUROC +0.84 [-0.40,+2.03] p=0.169 | shufsame - shuf d AUROC +0.01 [-0.99,+1.01] p=0.996 | real - shuf d AUROC +0.85 [-0.34,+2.11] p=0.175 (SENTENCE CONTENT: real-shufsame >= +1.5, p < 0.05, |shufsame-shuf| < 1.0; LABEL SIGNAL: shufsame-shuf >= +1.5, p < 0.05, |real-shufsame| < 1.0)
-H7 (label copy vs hint text): n/a (missing aux0.3_all_gv / _labelword / polonly_all_gv runs)
+H7 (label copy vs hint text): MIXED | real - labelword d AUROC +0.20 [-0.69,+1.04] p=0.625 | labelword - polonly d AUROC +0.14 [-1.03,+1.19] p=0.834 | labelword - shufsame d AUROC +0.64 [-0.59,+1.85] p=0.305 (LABEL COPY SUFFICES: |real-labelword| < 1.0 and labelword-polonly >= +1.5, p < 0.05; HINT TEXT MATTERS: real-labelword >= +1.5, p < 0.05)
+H8 (is the LLM needed): MIXED | real - nollm d AUROC +0.56 [-0.73,+1.75] p=0.379 | nollm - polonly d AUROC -0.22 [-1.42,+0.94] p=0.648 | labelword - nollm d AUROC +0.36 [-0.73,+1.36] p=0.498 (LLM NOT NEEDED: |real-nollm| < 1.0 and nollm-polonly >= +1.5, p < 0.05; LLM ASPECT MATTERS: real-nollm >= +1.5, p < 0.05)
